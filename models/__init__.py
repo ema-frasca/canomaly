@@ -1,5 +1,7 @@
 import os
 import importlib
+from typing import Type
+from models.utils.canomaly_model import CanomalyModel
 
 
 def get_all_models():
@@ -7,8 +9,7 @@ def get_all_models():
             if '__' not in model and model.endswith('.py')]
 
 
-def get_model(args):
-    mod = importlib.import_module('models.' + args.model)
-    class_name = {x.lower(): x for x in mod.__dir__()}[args.model.replace('_', '')]
-    model_class = getattr(mod, class_name)
-    return model_class(args)
+def get_model(model: str) -> Type[CanomalyModel]:
+    mod = importlib.import_module('models.' + model)
+    class_name = {x.lower(): x for x in mod.__dir__()}[model.replace('_', '')]
+    return getattr(mod, class_name)

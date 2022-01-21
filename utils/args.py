@@ -1,7 +1,7 @@
 import importlib
 from argparse import ArgumentParser
-from datasets import NAMES as DATASET_NAMES
-from models import get_all_models
+from datasets import get_all_datasets, get_dataset
+from models import get_all_models, get_model
 from utils.config import config
 
 
@@ -13,15 +13,10 @@ def parse_args():
     add_experiment_args(parser)
     args, unknown_args = parser.parse_known_args()
 
-    model = importlib.import_module('models.' + args.model)
-    dataset = importlib.import_module('datasets.' + args.dataset)
-
-    add_model_args = getattr(model, 'add_model_args', None)
-    add_dataset_args = getattr(dataset, 'add_dataset_args', None)
-    if add_model_args:
-        add_model_args(parser)
-    if add_dataset_args:
-        add_dataset_args(parser)
+    model = get_model(args.model)
+    dataset = get_dataset(args.dataset)
+    model.add_model_args(parser)
+    dataset.add_dataset_args(parser)
 
     args = parser.parse_args()
 
@@ -37,7 +32,7 @@ def add_experiment_args(parser: ArgumentParser) -> None:
     :param parser: the parser instance
     """
     parser.add_argument('--dataset', type=str, required=True,
-                        choices=DATASET_NAMES,
+                        choices=get_all_datasets(),
                         help='Which dataset to perform experiments on.')
     parser.add_argument('--model', type=str, required=True,
                         help='Model name.', choices=get_all_models())
