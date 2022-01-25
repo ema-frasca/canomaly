@@ -10,6 +10,6 @@ def get_all_models():
 
 
 def get_model(model: str) -> Type[CanomalyModel]:
-    mod = importlib.import_module('models.' + model)
+    mod = importlib.import_module('models.' + model.replace('-', '_'))
     class_name = {x.lower(): x for x in mod.__dir__()}[model.replace('-', '')]
     return getattr(mod, class_name)

@@ -19,10 +19,10 @@ class CIFAR10Decoder(Decoder):
         :param code_length:
         :param output_shape:
         """
+        c, h, w = output_shape
+        self.deepest_shape = (256, h // 8, w // 8)
         super(CIFAR10Decoder, self).__init__(code_length=code_length,
                                              output_shape=output_shape)
-        c, h, w = self.output_shape
-        self.deepest_shape = (256, h // 8, w // 8)
 
     def _set_conv_block(self):
         # Convolutional network

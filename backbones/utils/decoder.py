@@ -18,9 +18,13 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
 
         self.code_length = code_length
-        self.deepest_shape = None
         self.output_shape = output_shape
         self.activation_fn = nn.LeakyReLU()
+
+        self._set_fc_block()
+
+        # Convolutional network
+        self._set_conv_block()
 
     @abc.abstractmethod
     def _set_fc_block(self):

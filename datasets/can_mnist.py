@@ -1,3 +1,5 @@
+from typing import List
+
 import torch
 from argparse import Namespace, ArgumentParser
 from torchvision.datasets import MNIST
@@ -30,7 +32,7 @@ class CanMNIST(CanomalyDataset):
         self.train_dataset = MNIST(self.config.data_dir, train=True, download=True, transform=self.transform)
         self.test_dataset = MNIST(self.config.data_dir, train=False, download=True, transform=self.transform)
 
-    def _get_subset(self, labels: list[int], train=True):
+    def _get_subset(self, labels: List[int], train=True):
         self.last_seen_classes = labels
         base_ds = self.train_dataset if train else self.test_dataset
         idxes = torch.isin(base_ds.targets, torch.tensor(labels)).nonzero(as_tuple=True)[0]

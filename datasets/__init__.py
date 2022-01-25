@@ -10,6 +10,6 @@ def get_all_datasets():
 
 
 def get_dataset(dataset: str) -> Type[CanomalyDataset]:
-    mod = importlib.import_module('datasets.' + dataset)
+    mod = importlib.import_module('datasets.' + dataset.replace('-', '_'))
     class_name = {x.lower(): x for x in mod.__dir__()}[dataset.replace('-', '')]
     return getattr(mod, class_name)

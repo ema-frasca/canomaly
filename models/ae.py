@@ -7,8 +7,8 @@ from backbones import get_encoder, get_decoder
 from datasets.utils.canomaly_dataset import CanomalyDataset
 
 
-class AutoEncoder(CanomalyModel):
-    NAME = 'AutoEncoder'
+class AE(CanomalyModel):
+    NAME = 'AE'
     VARIATIONAL = False
     CONDITIONAL = False
 
@@ -18,7 +18,7 @@ class AutoEncoder(CanomalyModel):
                             help='Latent space dimensionality.')
 
     def __init__(self, args: Namespace, dataset: CanomalyDataset):
-        super(AutoEncoder, self).__init__(args=args, dataset=dataset)
+        super(AE, self).__init__(args=args, dataset=dataset)
         self.E = get_encoder(args.dataset)(input_shape=dataset.INPUT_SHAPE,
                                            code_length=args.latent_space)
         self.D = get_decoder(args.dataset)(code_length=args.latent_space,

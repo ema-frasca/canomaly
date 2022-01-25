@@ -2,13 +2,13 @@ from abc import abstractmethod
 from argparse import Namespace, ArgumentParser
 from torch.utils.data import DataLoader, Dataset
 from utils.config import config
-from typing import Generator
+from typing import Tuple, Iterator
 
 
 class CanomalyDataset:
     NAME: str = None
     N_CLASSES: int = None
-    INPUT_SHAPE: tuple[int, int, int] = None
+    INPUT_SHAPE: Tuple[int, int, int] = None
 
     @staticmethod
     def add_dataset_args(parser: ArgumentParser):
@@ -27,7 +27,7 @@ class CanomalyDataset:
         self.last_seen_classes: list[int] = []
 
     @abstractmethod
-    def _get_task_dataset(self) -> Generator[Dataset]:
+    def _get_task_dataset(self) -> Iterator[Dataset]:
         pass
 
     @abstractmethod
@@ -36,7 +36,7 @@ class CanomalyDataset:
 
     @staticmethod
     @abstractmethod
-    def get_input_shape() -> tuple[int, int, int]:
+    def get_input_shape() -> Tuple[int, int, int]:
         pass
 
     def task_loader(self):

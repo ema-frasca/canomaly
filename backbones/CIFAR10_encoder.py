@@ -18,6 +18,8 @@ class CIFAR10Encoder(Encoder):
         :param input_shape: the shape of MNIST samples.
         :param code_length: the dimensionality of latent vectors.
         """
+        c, h, w = input_shape
+        self.deepest_shape = (256, h // 8, w // 8)
         super(CIFAR10Encoder, self).__init__(input_shape=input_shape, code_length=code_length, variational=variational,
                                              conditional=conditional)
 
