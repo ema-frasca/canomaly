@@ -10,6 +10,7 @@ from datasets.utils.canomaly_dataset import CanomalyDataset
 from utils.optims import get_optim
 from utils.writer import writer
 from utils.logger import logger
+from torch.functional import F
 
 
 class CanomalyModel:
@@ -46,7 +47,8 @@ class CanomalyModel:
         for X, y in progress:
             self.full_log['results'][str(task)]['targets'].extend(y.tolist())
             X.to(self.device)
-            rec_errs = self.forward(X)
+            outs = self.forward(X)
+            rec_errs = self.reconstruction_error(X, outs)
             self.full_log['results'][str(task)]['rec_errs'].extend(rec_errs.tolist())
         progress.close()
 
@@ -56,6 +58,10 @@ class CanomalyModel:
             loss = self.train_on_batch(x, y, task)
             progress.set_postfix({'loss': loss})
         progress.close()
+
+    def reconstruction_error(self, recs: torch.Tensor, inputs: torch.Tensor) -> torch.Tensor:
+        rec_errs = F.mse_loss(inputs, recs, reduction='none').sum((1, 2, 3))
+        return rec_errs
 
     def train_on_dataset(self):
         logger.log(vars(self.args))
