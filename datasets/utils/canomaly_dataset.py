@@ -1,14 +1,6 @@
 from abc import abstractmethod
 from argparse import Namespace, ArgumentParser
-from torch import nn as nn
-from torchvision.transforms import transforms
 from torch.utils.data import DataLoader, Dataset
-from typing import Tuple, Union
-from torchvision import datasets
-import numpy as np
-import socket
-import torch
-import os
 from utils.config import config
 from typing import Generator
 
@@ -31,8 +23,14 @@ class CanomalyDataset:
         self.train_dataset = None
         self.test_dataset = None
 
+        self.last_seen_classes: list[int] = []
+
     @abstractmethod
     def _get_task_dataset(self) -> Generator[Dataset]:
+        pass
+
+    @abstractmethod
+    def _get_joint_dataset(self) -> Dataset:
         pass
 
     def task_loader(self):
@@ -40,7 +38,7 @@ class CanomalyDataset:
             yield DataLoader(ds, batch_size=self.args.batch_size, shuffle=True)
 
     def joint_loader(self):
-        return DataLoader(self.train_dataset, batch_size=self.args.batch_size, shuffle=True)
+        return DataLoader(self._get_joint_dataset(), batch_size=self.args.batch_size, shuffle=True)
 
     def test_loader(self):
         return DataLoader(self.test_dataset, batch_size=self.args.batch_size, shuffle=False)
