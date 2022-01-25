@@ -12,7 +12,7 @@ from utils.writer import writer
 from utils.logger import logger
 
 
-class CanomalyModel():
+class CanomalyModel:
     NAME = None
 
     @staticmethod
@@ -33,7 +33,7 @@ class CanomalyModel():
         self.full_log['knowledge'] = {}
 
     @abstractmethod
-    def train_on_batch(self, x: torch.Tensor, y: torch.Tensor, task: int):
+    def train_on_batch(self, x: torch.Tensor, y: torch.Tensor, task: int) -> float:
         pass
 
     @abstractmethod
@@ -53,7 +53,8 @@ class CanomalyModel():
     def train_on_task(self, task_loader: DataLoader, task: int):
         progress = logger.get_tqdm(task_loader, f'TRAIN on task {task}')
         for x, y in progress:
-            self.train_on_batch(x, y, task)
+            loss = self.train_on_batch(x, y, task)
+            progress.set_postfix({'loss': loss})
         progress.close()
 
     def train_on_dataset(self):
