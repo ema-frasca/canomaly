@@ -22,9 +22,9 @@ def main(args=None):
     args.timestamp = str(datetime.datetime.now())
 
     dataset = get_dataset(args.dataset)(args)
-    model = get_model(args.model)(args)
+    model = get_model(args.model)(args, dataset)
 
-    model.train_on_dataset(dataset)
+    model.train_on_dataset()
     model.print_log()
 
 

@@ -10,6 +10,7 @@ from utils.writer import writer
 class CanMNIST(CanomalyDataset):
     NAME = 'can-mnist'
     N_CLASSES = 10
+    INPUT_SHAPE = (1, 28, 28)
 
     @staticmethod
     def add_dataset_args(parser: ArgumentParser):

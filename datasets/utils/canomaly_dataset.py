@@ -8,6 +8,7 @@ from typing import Generator
 class CanomalyDataset:
     NAME: str = None
     N_CLASSES: int = None
+    INPUT_SHAPE: tuple[int, int, int] = None
 
     @staticmethod
     def add_dataset_args(parser: ArgumentParser):
@@ -31,6 +32,11 @@ class CanomalyDataset:
 
     @abstractmethod
     def _get_joint_dataset(self) -> Dataset:
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def get_input_shape() -> tuple[int, int, int]:
         pass
 
     def task_loader(self):

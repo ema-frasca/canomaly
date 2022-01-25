@@ -10,6 +10,7 @@ from utils.writer import writer
 class CanCifar10(CanomalyDataset):
     NAME = 'can-cifar10'
     N_CLASSES = 10
+    INPUT_SHAPE = (3, 32, 32)
 
     @staticmethod
     def add_dataset_args(parser: ArgumentParser):
