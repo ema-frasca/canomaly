@@ -53,11 +53,12 @@ class CanomalyModel:
         progress.close()
 
     def train_on_task(self, task_loader: DataLoader, task: int):
-        progress = logger.get_tqdm(task_loader, f'TRAIN on task {task}')
-        for x, y in progress:
-            loss = self.train_on_batch(x, y, task)
-            progress.set_postfix({'loss': loss})
-        progress.close()
+        for e in range(self.args.n_epochs):
+            progress = logger.get_tqdm(task_loader, f'Epoch: {e} '.ljust(2) + 'TRAIN on task {task}')
+            for x, y in progress:
+                loss = self.train_on_batch(x, y, task)
+                progress.set_postfix({'loss': loss})
+            progress.close()
 
     def reconstruction_error(self, recs: torch.Tensor, inputs: torch.Tensor) -> torch.Tensor:
         rec_errs = F.mse_loss(inputs, recs, reduction='none').sum((1, 2, 3))
