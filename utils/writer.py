@@ -13,7 +13,7 @@ class Writer:
     def write_log(self, log: dict, name: str = None, extension='pyd'):
         target_dir = config.logs_dir
         for dir_arg in self.dir_args:
-            target_dir = create_dir(os.path.join(target_dir, dir_arg + '-' + log[dir_arg]))
+            target_dir = create_dir(os.path.join(target_dir, dir_arg + '-' + str(log[dir_arg])))
 
         filename = name
         if not filename and self.name_arg in log:

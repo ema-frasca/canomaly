@@ -18,10 +18,10 @@ class FMNISTDecoder(Decoder):
         :param code_length:
         :param output_shape:
         """
+        c, h, w = output_shape
+        self.deepest_shape = (64, h // 4, w // 4)
         super(FMNISTDecoder, self).__init__(code_length=code_length,
                                             output_shape=output_shape)
-        c, h, w = self.output_shape
-        self.deepest_shape = (64, h // 4, w // 4)
 
     def _set_conv_block(self):
         # Convolutional network

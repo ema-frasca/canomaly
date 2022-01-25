@@ -11,7 +11,7 @@ class Logger:
         print(message, file=self.default_out)
 
     def get_tqdm(self, iter_obj: Iterable, desc: str):
-        return tqdm(iter_obj, desc=desc, file=self.default_out)
+        return tqdm(iter_obj, desc=desc.ljust(20), file=self.default_out, ncols=150)
 
 
 logger = Logger()
