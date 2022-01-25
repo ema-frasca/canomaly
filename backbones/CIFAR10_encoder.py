@@ -31,4 +31,3 @@ class CIFAR10Encoder(Encoder):
             DownsampleBlock(channel_in=64, channel_out=128, activation_fn=self.activation_fn),
             DownsampleBlock(channel_in=128, channel_out=256, activation_fn=self.activation_fn),
         )
-        self.deepest_shape = (256, h // 8, w // 8)

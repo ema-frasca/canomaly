@@ -9,18 +9,16 @@ class Decoder(nn.Module):
     MNIST model decoder.
     """
 
-    def __init__(self, code_length: int, deepest_shape: Tuple[int, int, int],
-                 output_shape: Tuple[int, int, int]) -> None:
+    def __init__(self, code_length: int, output_shape: Tuple[int, int, int]) -> None:
         """
         Class constructor.
         :param code_length: the dimensionality of latent vectors.
-        :param deepest_shape: the dimensionality of the encoder's deepest convolutional map.
         :param output_shape: the shape of MNIST samples.
         """
         super(Decoder, self).__init__()
 
         self.code_length = code_length
-        self.deepest_shape = deepest_shape
+        self.deepest_shape = None
         self.output_shape = output_shape
         self.activation_fn = nn.LeakyReLU()
 

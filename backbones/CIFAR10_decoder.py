@@ -12,16 +12,17 @@ class CIFAR10Decoder(Decoder):
     MNIST model decoder
     """
 
-    def __init__(self, code_length: int, deepest_shape: Tuple[int, int, int],
+    def __init__(self, code_length: int,
                  output_shape: Tuple[int, int, int]):
         """
 
         :param code_length:
-        :param deepest_shape:
         :param output_shape:
         """
-        super(CIFAR10Decoder, self).__init__(deepest_shape=deepest_shape, code_length=code_length,
+        super(CIFAR10Decoder, self).__init__(code_length=code_length,
                                              output_shape=output_shape)
+        c, h, w = self.output_shape
+        self.deepest_shape = (256, h // 8, w // 8)
 
     def _set_conv_block(self):
         # Convolutional network

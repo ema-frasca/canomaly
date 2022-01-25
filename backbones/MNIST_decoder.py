@@ -12,16 +12,16 @@ class MNISTDecoder(Decoder):
     MNIST model decoder
     """
 
-    def __init__(self, code_length: int, deepest_shape: Tuple[int, int, int],
-                 output_shape: Tuple[int, int, int]):
+    def __init__(self, code_length: int, output_shape: Tuple[int, int, int]):
         """
 
         :param code_length:
-        :param deepest_shape:
         :param output_shape:
         """
-        super(MNISTDecoder, self).__init__(deepest_shape=deepest_shape, code_length=code_length,
+        super(MNISTDecoder, self).__init__(code_length=code_length,
                                            output_shape=output_shape)
+        c, h, w = self.output_shape
+        self.deepest_shape = (64, h // 4, w // 4)
 
     def _set_conv_block(self):
         # Convolutional network

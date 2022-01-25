@@ -29,4 +29,3 @@ class FMNISTEncoder(Encoder):
             DownsampleBlock(channel_in=c, channel_out=32, activation_fn=self.activation_fn),
             DownsampleBlock(channel_in=32, channel_out=64, activation_fn=self.activation_fn),
         )
-        self.deepest_shape = (64, h // 4, w // 4)
