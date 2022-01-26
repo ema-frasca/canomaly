@@ -8,6 +8,7 @@ from utils.optims import get_optim
 from utils.writer import writer
 from utils.logger import logger
 from utils.metrics import reconstruction_error
+from random import random
 
 
 class CanomalyModel:
@@ -56,7 +57,7 @@ class CanomalyModel:
             outs = self.forward(X)
             rec_errs = reconstruction_error(X, outs)
             self.full_log['results'][str(task)]['rec_errs'].extend(rec_errs.tolist())
-            if len(images_sample) < self.dataset.N_CLASSES:
+            if len(images_sample) < self.dataset.N_CLASSES and random() < 0.1:
                 for i in range(len(y)):
                     if str(y[i].item()) not in images_sample:
                         images_sample[str(y[i].item())] = {'original': X[i].tolist(),
