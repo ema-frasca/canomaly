@@ -34,6 +34,3 @@ class AE(CanomalyModel):
         loss.backward()
         self.opt.step()
         return loss.item()
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.net(x)

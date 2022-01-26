@@ -17,6 +17,8 @@ def main(args=None):
 
     if args.seed is not None:
         config.set_seed(args.seed)
+    else:
+        args.seed = config.seed
 
     args.id = str(uuid.uuid4())
     args.timestamp = str(datetime.datetime.now())

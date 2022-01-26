@@ -1,8 +1,5 @@
-import torch.nn as nn
-from torch.optim import SGD
 import torch
 from torch.utils.data import DataLoader
-import torchvision
 from abc import abstractmethod
 from argparse import Namespace, ArgumentParser
 from utils.config import config
@@ -10,7 +7,7 @@ from datasets.utils.canomaly_dataset import CanomalyDataset
 from utils.optims import get_optim
 from utils.writer import writer
 from utils.logger import logger
-from torch.functional import F
+from utils.metrics import reconstruction_error
 
 
 class CanomalyModel:
@@ -33,36 +30,52 @@ class CanomalyModel:
         self.full_log['results'] = {}
         self.full_log['knowledge'] = {}
 
+        self.net: torch.nn.Module = None
+
     @abstractmethod
     def train_on_batch(self, x: torch.Tensor, y: torch.Tensor, task: int) -> float:
         pass
 
-    @abstractmethod
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        pass
+        return self.net(x)
+
+    def net_train(self):
+        self.net.train()
+
+    def net_eval(self):
+        self.net.eval()
 
     def test_step(self, test_loader: DataLoader, task: int):
-        self.full_log['results'][str(task)] = {'targets': [], 'rec_errs': []}
-        progress = logger.get_tqdm(test_loader, f'TEST on task {task}')
+        self.net_eval()
+        self.full_log['results'][str(task)] = {'targets': [], 'rec_errs': [], 'images': []}
+        progress = logger.get_tqdm(test_loader, f'TEST on task {task+1}')
+        images_sample = {}
         for X, y in progress:
             self.full_log['results'][str(task)]['targets'].extend(y.tolist())
             X.to(self.device)
             outs = self.forward(X)
-            rec_errs = self.reconstruction_error(X, outs)
+            rec_errs = reconstruction_error(X, outs)
             self.full_log['results'][str(task)]['rec_errs'].extend(rec_errs.tolist())
+            if len(images_sample) < self.dataset.N_CLASSES:
+                for i in range(len(y)):
+                    if str(y[i].item()) not in images_sample:
+                        images_sample[str(y[i].item())] = {'original': X[i].tolist(),
+                                                           'reconstruction': outs[i].tolist()}
+        images_sample = dict(sorted(images_sample.items()))
+        for label in images_sample:
+            self.full_log['results'][str(task)]['images'].append({'label': label, **images_sample[label]})
         progress.close()
 
     def train_on_task(self, task_loader: DataLoader, task: int):
+        self.net_train()
         for e in range(self.args.n_epochs):
-            progress = logger.get_tqdm(task_loader, f'Epoch: {e} '.ljust(2) + 'TRAIN on task {task}')
+            keep_progress = True # if e == self.args.n_epochs - 1 else False
+            progress = logger.get_tqdm(task_loader,
+                                       f'TRAIN on task {task+1}/{self.dataset.n_tasks} - epoch {e+1}/{self.args.n_epochs}',
+                                       leave=keep_progress)
             for x, y in progress:
                 loss = self.train_on_batch(x, y, task)
                 progress.set_postfix({'loss': loss})
-            progress.close()
-
-    def reconstruction_error(self, recs: torch.Tensor, inputs: torch.Tensor) -> torch.Tensor:
-        rec_errs = F.mse_loss(inputs, recs, reduction='none').sum((1, 2, 3))
-        return rec_errs
 
     def train_on_dataset(self):
         logger.log(vars(self.args))
