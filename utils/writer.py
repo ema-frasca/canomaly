@@ -10,8 +10,8 @@ class Writer:
         self.dir_args: list[str] = []
         self.name_arg = ''
 
-    def write_log(self, log: dict, name: str = None, extension='pyd'):
-        target_dir = config.logs_dir
+    def write_log(self, log: dict, name: str = None, extension='pyd', result=False):
+        target_dir = config.results_dir if result else config.logs_dir
         for dir_arg in self.dir_args:
             target_dir = create_dir(os.path.join(target_dir, dir_arg + '-' + str(log[dir_arg])))
 

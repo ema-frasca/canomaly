@@ -27,7 +27,7 @@ def main(args=None):
     model = get_model(args.model)(args, dataset)
 
     model.train_on_dataset()
-    model.print_log()
+    model.print_results()
 
 
 if __name__ == '__main__':
