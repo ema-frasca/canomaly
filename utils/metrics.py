@@ -27,7 +27,7 @@ def reconstruction_confusion_matrix(log: dict):
         for label in labels:
             matrix.loc[idx, label] = scores[targets == label].mean()
 
-    return matrix.to_dict(orient='index')
+    return matrix.to_dict()
 
 
 def compute_weighted_auc(anomalies: np.array, scores: np.array):
@@ -75,5 +75,5 @@ def compute_exp_metrics(log: dict, per_task=True):
 
     final_auc = metrics.loc[task, 'total']
     average_auc = metrics.loc[:, "total"].mean()
-    # print(f'final {final_auc} average {average_auc}')
+    # print(f'final {final_auc} average {average_auc}')delta
     return final_auc, average_auc, metrics.to_dict(orient='index')
