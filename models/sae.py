@@ -18,6 +18,8 @@ class SAE(CanomalyModel):
                             help='Latent space dimensionality.')
         parser.add_argument('--sparse_weight', type=float, required=True,
                             help='Weight for sparse loss.')
+        parser.add_argument('--norm_order', type=int, required=True, help='Normalization order',
+                            choices=[1, 2])
 
     def __init__(self, args: Namespace, dataset: CanomalyDataset):
         super(SAE, self).__init__(args=args, dataset=dataset)
@@ -30,7 +32,8 @@ class SAE(CanomalyModel):
         self.reconstruction_loss = nn.MSELoss()
 
     def sparse_loss(self, z: torch.Tensor):
-        return torch.linalg.norm(z, dim=1).mean()
+        # mean to normalize on batch size
+        return torch.linalg.vector_norm(z, ord=self.args.norm_order, dim=1).mean()
 
     def train_on_batch(self, x: torch.Tensor, y: torch.Tensor, task: int):
         self.opt.zero_grad()
