@@ -14,13 +14,16 @@ def reconstruction_error(input_image: torch.Tensor, reconstruction: torch.Tensor
 
 
 def reconstruction_confusion_matrix(log: dict):
-    matrix = pd.DataFrame(index=log['results'], columns=[str(x) for x in log['knowledge'].values()], dtype='float')
+    labels = np.unique(np.array(next(iter(log['results'].values()))['targets'])).tolist()
+    indexes = [key + str(log['knowledge'][key]) for key in log['knowledge']]
+    matrix = pd.DataFrame(index=indexes,
+                          columns=labels, dtype='float')
 
-    for task in log['results']:
+    for idx, task in zip(indexes, log['results']):
         scores = np.array(log['results'][task]['rec_errs'])
         targets = np.array(log['results'][task]['targets'])
-        for targ in log['knowledge']:
-            matrix.loc[task, str(log['knowledge'][targ])] = scores[np.isin(targets, log['knowledge'][targ])].mean()
+        for label in labels:
+            matrix.loc[idx, label] = scores[targets == label].mean()
 
     return matrix.to_dict(orient='index')
 

@@ -51,7 +51,7 @@ class CanomalyModel:
         images_sample = {}
         for X, y in progress:
             self.full_log['results'][str(task)]['targets'].extend(y.tolist())
-            X.to(self.device)
+            X = X.to(self.device)
             outs = self.forward(X)
             rec_errs = reconstruction_error(X, outs)
             self.full_log['results'][str(task)]['rec_errs'].extend(rec_errs.tolist())
@@ -74,12 +74,12 @@ class CanomalyModel:
     def train_on_task(self, task_loader: DataLoader, task: int):
         self.net_train()
         for e in range(self.args.n_epochs):
-            keep_progress = True # if e == self.args.n_epochs - 1 else False
+            keep_progress = True  # if e == self.args.n_epochs - 1 else False
             progress = logger.get_tqdm(task_loader,
                                        f'TRAIN on task {task+1}/{self.dataset.n_tasks} - epoch {e+1}/{self.args.n_epochs}',
                                        leave=keep_progress)
             for x, y in progress:
-                loss = self.train_on_batch(x, y, task)
+                loss = self.train_on_batch(x.to(self.device), y.to(self.device), task)
                 progress.set_postfix({'loss': loss})
 
     def train_on_dataset(self):
