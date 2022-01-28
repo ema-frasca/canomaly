@@ -1,3 +1,5 @@
+from typing import List
+
 import torch
 from torch.functional import F
 
@@ -34,7 +36,7 @@ def compute_weighted_auc(anomalies: np.array, scores: np.array):
     return roc_auc_score(anomalies, scores, sample_weight=weights)
 
 
-def compute_task_auc(targets: list[int], scores: list[float], knowledge: list[int]):
+def compute_task_auc(targets: List[int], scores: List[float], knowledge: List[int]):
     targets = np.array(targets)
     scores = np.array(scores)
     anomalies = np.logical_not(np.isin(targets, knowledge)).astype(int)
