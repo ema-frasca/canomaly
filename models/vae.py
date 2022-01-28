@@ -5,7 +5,6 @@ from argparse import Namespace, ArgumentParser
 from models import CanomalyModel
 from backbones import get_encoder, get_decoder
 from datasets.utils.canomaly_dataset import CanomalyDataset
-import math
 
 
 class VAE(CanomalyModel):
@@ -35,7 +34,7 @@ class VAE(CanomalyModel):
 
     def kld_loss(self, mu: torch.Tensor, logvar: torch.Tensor):
         kld = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-        return kld / (math.prod(self.dataset.INPUT_SHAPE) * self.args.batch_size)
+        return kld / self.args.batch_size
 
     def train_on_batch(self, x: torch.Tensor, y: torch.Tensor, task: int):
         self.opt.zero_grad()
