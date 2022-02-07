@@ -84,7 +84,7 @@ class CanomalyModel:
                 loss = self.train_on_batch(x.to(self.device), y.to(self.device), task)
                 progress.set_postfix({'loss': loss})
             self.validate()
-            self.sheduler_step()
+            self.scheduler_step()
 
     def validate(self):
         pass
