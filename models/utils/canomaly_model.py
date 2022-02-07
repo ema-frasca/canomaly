@@ -7,7 +7,8 @@ from datasets.utils.canomaly_dataset import CanomalyDataset
 from utils.optims import get_optim
 from utils.writer import writer
 from utils.logger import logger
-from utils.metrics import reconstruction_error, compute_exp_metrics, reconstruction_confusion_matrix, compute_task_auc
+from utils.metrics import (reconstruction_error, compute_exp_metrics, reconstruction_confusion_matrix, compute_task_auc,
+                           print_reconstructed_vs_true)
 from random import random
 
 
@@ -60,6 +61,7 @@ class CanomalyModel:
                     if str(y[i].item()) not in images_sample:
                         images_sample[str(y[i].item())] = {'original': X[i].tolist(),
                                                            'reconstruction': outs[i].tolist()}
+                        # print_reconstructed_vs_true(outs[i], X[i], y[i], (28, 28))
         images_sample = dict(sorted(images_sample.items()))
         for label in images_sample:
             self.full_log['results'][str(task)]['images'].append({'label': label, **images_sample[label]})
@@ -81,9 +83,18 @@ class CanomalyModel:
             for x, y in progress:
                 loss = self.train_on_batch(x.to(self.device), y.to(self.device), task)
                 progress.set_postfix({'loss': loss})
+            self.validate()
+            self.sheduler_step()
+
+    def validate(self):
+        pass
+
+    def scheduler_step(self):
+        pass
 
     def train_on_dataset(self):
         logger.log(vars(self.args))
+        logger.log(self.net)
         if self.args.joint:
             self.train_on_task(self.dataset.joint_loader(), 0)
             self.full_log['knowledge']['0'] = self.dataset.last_seen_classes.copy()

@@ -1,0 +1,39 @@
+experiments:
+#  0:
+#    lr: [0.1, 0.01, 0.001]
+#    dataset: can-sole
+#    model: ae
+#    batch_size: 64
+#    n_epochs: [50]
+#    latent_space: [8, 16]
+#    classes_per_task: [1]
+#  1:
+#    lr: [ 0.1, 0.01, 0.001 ]
+#    dataset: can-sole
+#    model: sae
+#    batch_size: 64
+#    n_epochs: [ 50 ]
+#    latent_space: [8, 16]
+#    classes_per_task: [1]
+#    sparse_weight: [0.5, 1]
+#    norm_order: [2]
+#  2:
+#    lr: [ 0.1, 0.01, 0.001 ]
+#    dataset: can-sole
+#    model: vae
+#    batch_size: 64
+#    n_epochs: [ 50 ]
+#    latent_space: [8, 16]
+#    classes_per_task: [1]
+#    beta_kl: [ 0.2, 0.5, 0.7, 1 ]
+  3:
+    lr: [ 0.1, 0.01, 0.001 ]
+    dataset: can-sole
+    model: dae
+    batch_size: 64
+    n_epochs: [ 50 ]
+    latent_space: [8, 16]
+    noise_mean: 0
+    noise_std: 0.5
+    classes_per_task: [1]
+default_argument: ['joint']

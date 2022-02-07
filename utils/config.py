@@ -11,7 +11,7 @@ class Config:
         self.local = local
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        self.storage_dir = create_dir('./storage/' if local else '/nas/softechict-nas-2/efrascaroli/canomaly-data/')
+        self.storage_dir = create_dir('./storage/' if local else '/nas/softechict-nas-1/rbenaglia/canomaly-data/')
 
         self.data_dir = create_dir(self.storage_dir + 'data/')
         self.models_dir = create_dir(self.storage_dir + 'models/')

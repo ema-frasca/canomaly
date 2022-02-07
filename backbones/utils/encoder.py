@@ -5,9 +5,6 @@ import abc
 import torch
 import torch.nn as nn
 
-from backbones.blocks_2d import DownsampleBlock, ResidualBlock
-from backbones.blocks_2d import UpsampleBlock
-
 
 class Encoder(nn.Module):
     """
@@ -28,7 +25,6 @@ class Encoder(nn.Module):
 
         self.input_shape = input_shape
         self.code_length = code_length
-        self.input_shape = input_shape
         self.variational = variational
         self.conditional = conditional
         self.activation_fn = nn.LeakyReLU()
