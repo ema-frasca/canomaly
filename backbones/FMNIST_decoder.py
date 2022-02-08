@@ -9,7 +9,7 @@ from backbones.utils.decoder import Decoder
 
 class FMNISTDecoder(Decoder):
     """
-    MNIST model decoder
+    FMNIST model decoder
     """
 
     def __init__(self, code_length: int, output_shape: Tuple[int, int, int]):
@@ -21,7 +21,7 @@ class FMNISTDecoder(Decoder):
         c, h, w = output_shape
         self.deepest_shape = (64, h // 4, w // 4)
         super(FMNISTDecoder, self).__init__(code_length=code_length,
-                                            output_shape=output_shape)
+                                           output_shape=output_shape)
 
     def _set_conv_block(self):
         # Convolutional network
