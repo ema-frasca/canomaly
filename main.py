@@ -1,5 +1,5 @@
 import datetime
-import uuid
+from uuid import uuid4
 
 from utils.args import parse_args
 from utils.config import config
@@ -20,7 +20,7 @@ def main(args=None):
     else:
         args.seed = config.seed
 
-    args.id = str(uuid.uuid4())
+    args.id = str(uuid4())
     args.timestamp = str(datetime.datetime.now())
 
     dataset = get_dataset(args.dataset)(args)
