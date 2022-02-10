@@ -16,7 +16,7 @@ class VAE(CanomalyModel):
     def add_model_args(parser: ArgumentParser):
         parser.add_argument('--latent_space', type=int, required=True,
                             help='Latent space dimensionality.')
-        parser.add_argument('--beta_kl', type=float, required=True,
+        parser.add_argument('--kl_weight', type=float, required=True,
                             help='Weight for kl-divergence.')
 
     def __init__(self, args: Namespace, dataset: CanomalyDataset):
@@ -46,7 +46,7 @@ class VAE(CanomalyModel):
         latent_z = torch.mul(torch.randn_like(latent_mu), (0.5 * latent_logvar).exp()) + latent_mu
         outputs = self.D(latent_z)
 
-        loss = self.reconstruction_loss(x, outputs) + self.args.beta_kl*self.kld_loss(latent_mu, latent_logvar)
+        loss = self.reconstruction_loss(x, outputs) + self.args.kl_weight*self.kld_loss(latent_mu, latent_logvar)
         loss.backward()
         self.opt.step()
         return loss.item()

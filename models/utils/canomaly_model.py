@@ -118,4 +118,10 @@ class CanomalyModel:
         res_log['auc_per_task'] = auc_pt
         res_log['conf_matrix_per_task'] = cmatrix
 
+        # from utils.metrics import print_reconstructed_vs_true
+        # import numpy as np
+        # n = 0
+        # for n in range(10):
+        #     print_reconstructed_vs_true(torch.tensor(self.full_log['results']['0']['images'][n]['reconstruction']).squeeze(), torch.tensor(self.full_log['results']['0']['images'][n]['original']).squeeze(), np.array([n]))
+
         writer.write_log(res_log, result=True)

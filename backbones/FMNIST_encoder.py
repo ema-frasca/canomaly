@@ -8,11 +8,11 @@ from backbones.utils.encoder import Encoder
 
 class FMNISTEncoder(Encoder):
     """
-    MNIST model encoder.
+    FMNIST model encoder.
     """
 
-    def __init__(self, input_shape: Tuple[int, int, int], code_length: int, variational: bool,
-                 conditional: bool) -> None:
+    def __init__(self, input_shape: Tuple[int, int, int], code_length: int, variational: bool = False,
+                 conditional: bool = False) -> None:
         """
         Class constructor:
         :param input_shape: the shape of MNIST samples.
@@ -20,11 +20,11 @@ class FMNISTEncoder(Encoder):
         """
         c, h, w = input_shape
         self.deepest_shape = (64, h // 4, w // 4)
+
         super(FMNISTEncoder, self).__init__(input_shape=input_shape, code_length=code_length, variational=variational,
-                                            conditional=conditional)
+                                           conditional=conditional)
 
     def _set_conv_block(self):
-        # todo: fix this
         c, h, w = self.input_shape
 
         self.conv = nn.Sequential(

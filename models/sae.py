@@ -18,7 +18,7 @@ class SAE(CanomalyModel):
                             help='Latent space dimensionality.')
         parser.add_argument('--sparse_weight', type=float, required=True,
                             help='Weight for sparse loss.')
-        parser.add_argument('--norm_order', type=int, required=True, help='Normalization order',
+        parser.add_argument('--norm_order', type=int, default=2, help='Normalization order',
                             choices=[1, 2])
 
     def __init__(self, args: Namespace, dataset: CanomalyDataset):
