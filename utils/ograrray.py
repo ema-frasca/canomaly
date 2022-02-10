@@ -47,43 +47,22 @@ nickname = args.nickname if args.nickname is not None else 'der-verse'
 if not local:
     # if args.jobs_per_gpu == 1:
     gridsh = '''#!/bin/bash
-    #SBATCH -p prod
-    #SBATCH --job-name=<nick>
-    #SBATCH --array=0-<lung>%<mj>
-    #SBATCH --nodes=1
-    <time>
-    #SBATCH --output="/homes/<user_name>/output/<nick>_%A_%a.out"
-    #SBATCH --error="/homes/<user_name>/output/<nick>_%A_%a.err"
-    #SBATCH --gres=gpu:<ngpu>
-    <xcld>
-    
-    arguments=(
-    <REPLACEME>
-    )
-    
-    sleep $(($RANDOM % 20)); ${arguments[$SLURM_ARRAY_TASK_ID]}
-        '''
-    # else:
-    #     gridsh = '''#!/bin/bash
-    # #SBATCH -p prod
-    # #SBATCH --job-name=<nick>
-    # #SBATCH --array=0-<lung>%<mj>
-    # #SBATCH --nodes=1
-    # <time>
-    # #SBATCH --output="/homes/efrascaroli/output/<nick>_%A_%a.out"
-    # #SBATCH --error="/homes/efrascaroli/output/<nick>_%A_%a.err"
-    # #SBATCH --gres=gpu:<ngpu>
-    # <xcld>
-    #
-    # arguments=(
-    # <REPLACEME>
-    # )
-    #
-    #
-    # readarray -d : -t strarr <<< "${arguments[$SLURM_ARRAY_TASK_ID]}"
-    # sleep $(($RANDOM % 20)); ${strarr[0]}& sleep 3; ${strarr[1]}
-    #     '''
+#SBATCH -p prod
+#SBATCH --job-name=<nick>
+#SBATCH --array=0-<lung>%<mj>
+#SBATCH --nodes=1
+<time>
+#SBATCH --output="/homes/<user_name>/output/<nick>_%A_%a.out"
+#SBATCH --error="/homes/<user_name>/output/<nick>_%A_%a.err"
+#SBATCH --gres=gpu:<ngpu>
+<xcld>
 
+arguments=(
+<REPLACEME>
+)
+
+sleep $(($RANDOM % 20)); ${arguments[$SLURM_ARRAY_TASK_ID]}
+'''
     gridsh = gridsh.replace('<REPLACEME>', '\n'.join(sbacci))
     gridsh = gridsh.replace('<lung>', str(len(sbacci) - 1))
     gridsh = gridsh.replace('<xcld>', ('#SBATCH --exclude=' + args.exclude) if len(args.exclude) else '')

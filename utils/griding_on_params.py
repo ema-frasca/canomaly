@@ -1,6 +1,5 @@
 from argparse import ArgumentParser
 import yaml
-import numpy as np
 from sklearn.model_selection import ParameterGrid
 
 
@@ -13,21 +12,21 @@ def main():
         obj.write('##### START EXPERIMENTS #####')
     for experiment, values in params_list['experiments'].items():
         param_grid = {
-            key: val if isinstance(val, list) else [val] for key, val in values.items()
+            key: val if isinstance(val, list) else [val] for key, val in values.items() if key != 'default_argument'
         }
         grid = ParameterGrid(param_grid)
         command_list = []
         for val in grid:
             command_list.append(' '.join([f'--{param} {value}' for param, value in val.items()] +
-                                         [f'--{param}' for param in params_list['default_argument']
+                                         [f'--{param}' for param in values['default_argument']
                                           ]
                                          )
                                 )
         experiments_dict[experiment] = command_list
-
         with open(args.path_to_save, 'a') as obj:
             obj.write(f'\n## EXPERIMENT {experiment}\n')
             obj.write('\n'.join(command_list))
+    print('\n'.join([str(x) for x in experiments_dict.values()]))
 
 
 if __name__ == '__main__':
