@@ -1,3 +1,4 @@
+from typing import Union
 import torch
 from torch.utils.data import DataLoader
 from abc import abstractmethod
@@ -30,7 +31,7 @@ class CanomalyModel:
         self.optim_args = optim_args
         self.full_log = {**vars(args), 'results': {}, 'knowledge': {}}
 
-        self.net: torch.nn.Module = None
+        self.net: Union[torch.nn.Module, None] = None
 
     @abstractmethod
     def train_on_batch(self, x: torch.Tensor, y: torch.Tensor, task: int) -> float:

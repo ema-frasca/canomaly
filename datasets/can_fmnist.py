@@ -22,6 +22,7 @@ class CanFMNIST(CanomalyDataset):
         parser.add_argument('--classes_per_task', type=int, choices=[1, 2], required=True,
                             help='Classes per task. This also determines the number of tasks.')
         parser.add_argument('--permute_dataset', action='store_true', help='Permute randomly the label.')
+        parser.add_argument('--set_order',  action='store_true', help='Set order of labels.')
         parser.add_argument('--add_rotation', action='store_true', help='Add max 90 degrees rotation.')
         parser.add_argument('--min_max_rotation', type=tuple, help='Min max rotation degrees.')
         writer.dir_args.append('classes_per_task')
@@ -50,6 +51,8 @@ class CanFMNIST(CanomalyDataset):
         self.class_order_arr = self.train_dataset.targets.unique()
         if args.permute_dataset:
             self.class_order_arr = np.random.permutation(self.class_order_arr)
+        if args.set_order:
+            self.class_order_arr = np.array([2, 4, 6, 0, 5, 7, 9, 8, 3, 1])
 
     def _get_subset(self, labels: List[int], train=True):
         self.last_seen_classes = labels
@@ -64,5 +67,6 @@ class CanFMNIST(CanomalyDataset):
             yield self._get_subset(labels)
 
     def _get_joint_dataset(self):
-        labels = [cl for cl in range(self.N_CLASSES - self.classes_per_task)]
+        idx_labels = [cl for cl in range(self.N_CLASSES - self.classes_per_task)]
+        labels = self.class_order_arr[idx_labels].tolist()
         return self._get_subset(labels)

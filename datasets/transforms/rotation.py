@@ -20,7 +20,6 @@ class Rotation(object):
         """
         self.deg_min = deg_min
         self.deg_max = deg_max
-        self.degrees = np.random.uniform(self.deg_min, self.deg_max)
 
     def __call__(self, x: np.ndarray) -> np.ndarray:
         """
@@ -28,7 +27,9 @@ class Rotation(object):
         :param x: image to be rotated
         :return: rotated image
         """
-        return F.rotate(x, self.degrees)
+        degrees = np.random.uniform(self.deg_min, self.deg_max)
+
+        return F.rotate(x, degrees)
 
 
 class FixedRotation(object):

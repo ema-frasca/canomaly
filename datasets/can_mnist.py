@@ -62,5 +62,6 @@ class CanMNIST(CanomalyDataset):
             yield self._get_subset(labels)
 
     def _get_joint_dataset(self):
-        labels = [cl for cl in range(self.N_CLASSES - self.classes_per_task)]
+        idx_labels = [cl for cl in range(self.N_CLASSES - self.classes_per_task)]
+        labels = self.class_order_arr[idx_labels].tolist()
         return self._get_subset(labels)
