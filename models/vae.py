@@ -49,12 +49,12 @@ class VAE(CanomalyModel):
         # decoder forward
         outputs = self.D(latent_z)
 
-        loss = self.reconstruction_loss(x, outputs) + self.args.kl_weight*self.kld_loss(latent_mu, latent_logvar)
+        loss = self.reconstruction_loss(x, outputs) + self.args.kl_weight * self.kld_loss(latent_mu, latent_logvar)
         loss.backward()
         self.opt.step()
         return loss.item()
 
-    def forward(self, x:  torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         encoder_out = self.E(x)
         latent_mu, latent_logvar = encoder_out[:x.shape[0], :], encoder_out[x.shape[0]:, :]
         if self.args.forward_sample:
@@ -65,4 +65,3 @@ class VAE(CanomalyModel):
 
     def sample(self, latent_mu: torch.Tensor, latent_logvar: torch.Tensor):
         return torch.mul(torch.randn_like(latent_mu), (0.5 * latent_logvar).exp()) + latent_mu
-
