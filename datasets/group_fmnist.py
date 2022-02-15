@@ -17,7 +17,7 @@ class GroupFMNIST(CanomalyDataset):
     INPUT_SHAPE = (1, 28, 28)
     N_CLASSES = 10
     N_GROUPS = 4
-    MACRO_CLASSES = [[0, 2, 4, 6, 3], [1], [5, 7, 9], [8]]
+    MACRO_CLASSES = [[0, 2, 3, 4, 6], [1], [5, 7, 9], [8]]
     # MACRO_CLASSES = [[0, 2, 4, 6], [1], [3], [5, 7, 9], [8]]
     ## Classes:
     ##      0: 0 - 2 - 4 - 6    -> upper body
