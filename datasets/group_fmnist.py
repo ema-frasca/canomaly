@@ -29,7 +29,8 @@ class GroupFMNIST(CanomalyDataset):
     def add_dataset_args(parser: ArgumentParser):
         # parser.add_argument('--classes_per_task', type=int, choices=[1, 2], required=True,
         #                     help='Classes per task. This also determines the number of tasks.')
-        parser.add_argument('--ano_group', type=int, choices=[0, 1, 2, 3], default=3, help='Goup-class that will stay as anomaly.')
+        parser.add_argument('--ano_group', type=int, choices=[i for i in range(GroupFMNIST.N_GROUPS)],
+                            default=GroupFMNIST.N_GROUPS-1, help='Goup-class that will stay as anomaly.')
         writer.dir_args.append('ano_group')
         parser.add_argument('--add_rotation', action='store_true', help='Add degrees rotation.')
         parser.add_argument('--min_max_rotation', type=tuple, default=(-15, 15), help='Min max rotation degrees.')
