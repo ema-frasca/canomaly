@@ -95,17 +95,18 @@ class CanomalyModel:
 
     def train_on_dataset(self):
         logger.log(vars(self.args))
-        logger.log(self.net)
-        if self.args.joint:
-            self.train_on_task(self.dataset.joint_loader(), 0)
-            self.full_log['knowledge']['0'] = self.dataset.last_seen_classes.copy()
-            self.test_step(self.dataset.test_loader(), 0)
-        else:
-            for i, task_dl in enumerate(self.dataset.task_loader()):
-                self.train_on_task(task_dl, i)
-                self.full_log['knowledge'][str(i)] = self.dataset.last_seen_classes.copy()
-                # evaluate on test
-                self.test_step(self.dataset.test_loader(), i)
+        # logger.log(self.net)
+        loader = self.dataset.joint_loader if self.args.joint else self.dataset.task_loader
+        freezed_params = [param.data.clone() for param in self.net.parameters()] if self.args.joint else []
+        for i, task_dl in enumerate(loader()):
+            if self.args.joint:
+                for pidx, param in enumerate(self.net.parameters()):
+                    param.data = freezed_params[pidx].clone()
+
+            self.train_on_task(task_dl, i)
+            self.full_log['knowledge'][str(i)] = self.dataset.last_seen_classes.copy()
+            # evaluate on test
+            self.test_step(self.dataset.test_loader(), i)
 
     def print_results(self):
         if self.args.logs:

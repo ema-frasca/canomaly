@@ -84,8 +84,10 @@ class GroupFMNIST(CanomalyDataset):
         return Subset(base_ds, idxes)
 
     def _get_task_dataset(self):
-        for step, group_idx in enumerate(self.train_groups):
+        for group_idx in self.train_groups:
             yield self._get_subset(self.MACRO_CLASSES[group_idx])
 
     def _get_joint_dataset(self):
-        return self._get_subset([label for group_idx in self.train_groups for label in self.MACRO_CLASSES[group_idx]])
+        # return self._get_subset([label for group_idx in self.train_groups for label in self.MACRO_CLASSES[group_idx]])
+        for step in range(self.n_tasks):
+            yield self._get_subset([label for group_idx in self.train_groups[:step+1] for label in self.MACRO_CLASSES[group_idx]])
