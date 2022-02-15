@@ -44,7 +44,9 @@ class CanomalyDataset:
             yield DataLoader(ds, batch_size=self.args.batch_size, shuffle=True, drop_last=True)
 
     def joint_loader(self):
-        return DataLoader(self._get_joint_dataset(), batch_size=self.args.batch_size, shuffle=True, drop_last=True)
+        # return DataLoader(self._get_joint_dataset(), batch_size=self.args.batch_size, shuffle=True, drop_last=True)
+        for ds in self._get_joint_dataset():
+            yield DataLoader(ds, batch_size=self.args.batch_size, shuffle=True, drop_last=True)
 
     def test_loader(self):
         return DataLoader(self.test_dataset, batch_size=self.args.batch_size, shuffle=False)
