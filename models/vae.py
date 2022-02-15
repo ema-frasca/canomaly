@@ -18,6 +18,8 @@ class VAE(CanomalyModel):
                             help='Latent space dimensionality.')
         parser.add_argument('--kl_weight', type=float, required=True,
                             help='Weight for kl-divergence.')
+        parser.add_argument('--forward_sample', action='store_true',
+                            help='Set if you want to sample the decoder output.')
 
     def __init__(self, args: Namespace, dataset: CanomalyDataset):
         super(VAE, self).__init__(args=args, dataset=dataset)
@@ -28,22 +30,23 @@ class VAE(CanomalyModel):
                                            output_shape=dataset.INPUT_SHAPE)
         self.net = nn.Sequential(self.E, self.D).to(device=self.device)
         self.opt = self.Optimizer(self.net.parameters(), **self.optim_args)
-        # self.E_opt = self.Optimizer(self.E.parameters(), **self.optim_args)
-        # self.D_opt = self.Optimizer(self.D.parameters(), **self.optim_args)
         self.reconstruction_loss = nn.MSELoss()
 
     def kld_loss(self, mu: torch.Tensor, logvar: torch.Tensor):
-        kld = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-        return kld / self.args.batch_size
+        kld = torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1), dim=0)
+        return kld
 
     def train_on_batch(self, x: torch.Tensor, y: torch.Tensor, task: int):
         self.opt.zero_grad()
+
         # encoder forward in variational way
         encoder_out = self.E(x)
         latent_mu, latent_logvar = encoder_out[:x.shape[0], :], encoder_out[x.shape[0]:, :]
 
+        # reparametrization trick
+        latent_z = self.sample(latent_mu, latent_logvar)
+
         # decoder forward
-        latent_z = torch.mul(torch.randn_like(latent_mu), (0.5 * latent_logvar).exp()) + latent_mu
         outputs = self.D(latent_z)
 
         loss = self.reconstruction_loss(x, outputs) + self.args.kl_weight*self.kld_loss(latent_mu, latent_logvar)
@@ -51,9 +54,15 @@ class VAE(CanomalyModel):
         self.opt.step()
         return loss.item()
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x:  torch.Tensor) -> torch.Tensor:
         encoder_out = self.E(x)
-        latent_mu, _ = encoder_out[:x.shape[0], :], encoder_out[x.shape[0]:, :]
-        # decoder forward
-        outputs = self.D(latent_mu)
-        return outputs
+        latent_mu, latent_logvar = encoder_out[:x.shape[0], :], encoder_out[x.shape[0]:, :]
+        if self.args.forward_sample:
+            z = self.sample(latent_mu, latent_logvar)
+            return self.D(z)
+        else:
+            return self.D(latent_mu)
+
+    def sample(self, latent_mu: torch.Tensor, latent_logvar: torch.Tensor):
+        return torch.mul(torch.randn_like(latent_mu), (0.5 * latent_logvar).exp()) + latent_mu
+
