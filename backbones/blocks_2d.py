@@ -25,24 +25,24 @@ def residual_op(x: torch.Tensor, functions: Tuple[Module, Module, Module], bns: 
 
     # A-branch
     ha = x
-    ha = f1(ha)
+    ha = f1(ha) # B x 32 x H/2 x W/2
     if bn1 is not None:
         ha = bn1(ha)
     ha = activation_fn(ha)
 
-    ha = f2(ha)
+    ha = f2(ha) # B x 32 x H/2 x W/2
     if bn2 is not None:
         ha = bn2(ha)
 
     # B-branch
     hb = x
     if f3 is not None:
-        hb = f3(hb)
+        hb = f3(hb) # B x 32 x H/2 x W/2
     if bn3 is not None:
         hb = bn3(hb)
 
     # Residual connection
-    out = ha + hb
+    out = ha + hb # B x 32 x H/2 x W/2
     return activation_fn(out)
 
 

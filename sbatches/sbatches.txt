@@ -1,0 +1,31 @@
+######  AE #######
+
+# exploring lr (0.1, 0.01, 0.001)
+#--dataset can-mnist --model ae --lr 0.1 --batch_size 64 --n_epochs 10 --latent_space 32 --classes_per_task 1 --optim sgd
+#--dataset can-mnist --model ae --lr 0.1 --batch_size 64 --n_epochs 10 --latent_space 32 --classes_per_task 1 --joint --optim sgd
+#--dataset can-mnist --model ae --lr 0.01 --batch_size 64 --n_epochs 10 --latent_space 32 --classes_per_task 1 --optim sgd
+#--dataset can-mnist --model ae --lr 0.01 --batch_size 64 --n_epochs 10 --latent_space 32 --classes_per_task 1 --joint --optim sgd
+#--dataset can-mnist --model ae --lr 0.001 --batch_size 64 --n_epochs 10 --latent_space 32 --classes_per_task 1 --optim sgd
+#--dataset can-mnist --model ae --lr 0.001 --batch_size 64 --n_epochs 10 --latent_space 32 --classes_per_task 1 --joint --optim sgd
+
+# set best lr exploring epochs (10 - 20 - 30)
+--dataset can-mnist --model ae --lr 0.1 --batch_size 64 --n_epochs 10 --latent_space 32 --classes_per_task 1 --optim sgd
+--dataset can-mnist --model ae --lr 0.1 --batch_size 64 --n_epochs 10 --latent_space 32 --classes_per_task 1 --joint --optim sgd
+--dataset can-mnist --model ae --lr 0.1 --batch_size 64 --n_epochs 20 --latent_space 32 --classes_per_task 1 --optim sgd
+--dataset can-mnist --model ae --lr 0.1 --batch_size 64 --n_epochs 20 --latent_space 32 --classes_per_task 1 --joint --optim sgd
+--dataset can-mnist --model ae --lr 0.1 --batch_size 64 --n_epochs 30 --latent_space 32 --classes_per_task 1 --optim sgd
+--dataset can-mnist --model ae --lr 0.1 --batch_size 64 --n_epochs 30 --latent_space 32 --classes_per_task 1 --joint --optim sgd
+
+# set best lr exploring latent space (16 - 32 - 64)
+# --dataset can-mnist --model ae -lr best_lr --batch_size 64 --n_epochs 10 --latent_space 16 --classes_per_task 1 --optim sgd
+# --dataset can-mnist --model ae -lr best_lr --batch_size 64 --n_epochs 10 --latent_space 16 --classes_per_task 1 --joint --optim sgd
+# --dataset can-mnist --model ae -lr best_lr --batch_size 64 --n_epochs 10 --latent_space 32 --classes_per_task 1 --optim sgd
+# --dataset can-mnist --model ae -lr best_lr --batch_size 64 --n_epochs 10 --latent_space 32 --classes_per_task 1 --joint --optim sgd
+# --dataset can-mnist --model ae -lr best_lr --batch_size 64 --n_epochs 10 --latent_space 64 --classes_per_task 1 --optim sgd
+# --dataset can-mnist --model ae -lr best_lr --batch_size 64 --n_epochs 10 --latent_space 64 --classes_per_task 1 --joint --optim sgd
+
+# set best_lr and best_latent_space and repeat analysis for
+# vae (exploring beta_kl)
+# sae (exploring sparse_weight, num_order)
+# dae (exploring noise_mean, noise_std)
+

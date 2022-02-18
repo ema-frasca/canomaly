@@ -1,15 +1,17 @@
 import importlib
-from typing import Type
+from typing import Type, List
 from backbones.utils.encoder import Encoder
 from backbones.utils.decoder import Decoder
 
 string_to_erase = ['can-', 'group-', 'forg-']
 
-def replace_str(base: str, to_replace: list[str], replacement: str):
+
+def replace_str(base: str, to_replace: List[str], replacement: str):
     text = base
     for repl in to_replace:
         text = text.replace(repl, replacement)
     return text
+
 
 def get_decoder(dataset: str) -> Type[Decoder]:
     decoder_name = replace_str(dataset, string_to_erase, '').upper() + '_decoder'

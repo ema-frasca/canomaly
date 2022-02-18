@@ -85,7 +85,7 @@ class VQVAE(CanomalyModel):
                                         self.args.beta)
 
         self.D = get_decoder(args.dataset)(code_length=args.latent_space,
-                                           output_shape=dataset.INPUT_SHAPE)
+                                           output_shape=dataset.INPUT_SHAPE).conv
 
         # set as parameters only E conv + vq_layer + D
         self.net = nn.Sequential(self.E, self.vq_layer, self.D).to(device=self.device)
@@ -99,7 +99,6 @@ class VQVAE(CanomalyModel):
         encoder_out = self.E(x)
 
         quantized_inputs, vq_loss = self.vq_layer(encoder_out)
-
         # decoder forward
         outputs = self.D(quantized_inputs)
 
