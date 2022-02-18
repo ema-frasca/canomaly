@@ -36,6 +36,8 @@ class ForgFMNIST(CanomalyDataset):
 
         self.classes_per_task = 1
         self.n_tasks = self.N_GROUPS - 1
+        if args.approach == 'joint' and not args.per_task:
+            self.n_tasks = 1
 
         transform_list = []
         if args.add_rotation:
@@ -85,6 +87,8 @@ class ForgFMNIST(CanomalyDataset):
             yield self._get_subset(self.MACRO_CLASSES[group_idx])
 
     def _get_joint_dataset(self):
-        # return self._get_subset([label for group_idx in self.train_groups for label in self.MACRO_CLASSES[group_idx]])
+        if not self.args.per_task:
+            yield self._get_subset([label for group_idx in self.train_groups for label in self.MACRO_CLASSES[group_idx]])
+            return
         for step in range(self.n_tasks):
             yield self._get_subset([label for group_idx in self.train_groups[:step+1] for label in self.MACRO_CLASSES[group_idx]])

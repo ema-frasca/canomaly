@@ -18,6 +18,7 @@ def parse_args():
     model.add_model_args(parser)
     dataset.add_dataset_args(parser)
     add_optim_args(args.optim, parser)
+    add_approach_args(parser, args.approach)
 
     args = parser.parse_args()
 
@@ -39,12 +40,18 @@ def add_experiment_args(parser: ArgumentParser) -> None:
     writer.dir_args.append('dataset')
 
     # these are model / dataset args
-    parser.add_argument('--joint', action='store_true',
-                        help='Joint training (no continual).')
+    parser.add_argument('--approach', type=str, choices=['continual', 'joint', 'splits'], default='continual',
+                        help='Type of training.')
     parser.add_argument('--batch_size', type=int, required=True,
                         help='Batch size.')
     parser.add_argument('--n_epochs', type=int, required=True,
                         help='The number of epochs for each task.')
+
+
+def add_approach_args(parser: ArgumentParser, approach: str) -> None:
+    if approach == 'joint':
+        parser.add_argument('--per_task', action='store_true',
+                            help='Compute joint training for every task.')
 
 
 def add_management_args(parser: ArgumentParser) -> None:

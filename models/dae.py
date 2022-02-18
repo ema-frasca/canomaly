@@ -23,13 +23,14 @@ class DAE(CanomalyModel):
 
     def __init__(self, args: Namespace, dataset: CanomalyDataset):
         super(DAE, self).__init__(args=args, dataset=dataset)
-        self.E = get_encoder(args.dataset)(input_shape=dataset.INPUT_SHAPE,
-                                           code_length=args.latent_space)
-        self.D = get_decoder(args.dataset)(code_length=args.latent_space,
-                                           output_shape=dataset.INPUT_SHAPE)
-        self.net = nn.Sequential(self.E, self.D).to(device=self.device)
-        self.opt = self.Optimizer(self.net.parameters(), **self.optim_args)
+
         self.loss = nn.MSELoss()
+
+    def get_backbone(self):
+        return nn.Sequential(
+            get_encoder(self.args.dataset)(input_shape=self.dataset.INPUT_SHAPE, code_length=self.args.latent_space),
+            get_decoder(self.args.dataset)(code_length=self.args.latent_space, output_shape=self.dataset.INPUT_SHAPE),
+        )
 
     def add_noise(self, imgs: torch.Tensor):
         return imgs + torch.randn_like(imgs) * self.args.noise_std + self.args.noise_mean
@@ -37,7 +38,7 @@ class DAE(CanomalyModel):
     def train_on_batch(self, x: torch.Tensor, y: torch.Tensor, task: int):
         self.opt.zero_grad()
         x_noised = self.add_noise(x)
-        outputs = self.forward(x_noised)
+        outputs = self.forward(x_noised, task)
         loss = self.loss(outputs, x)
         loss.backward()
         self.opt.step()

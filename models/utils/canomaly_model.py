@@ -1,5 +1,7 @@
 from typing import Union
 import torch
+from torch import nn
+from torch.functional import F
 from torch.utils.data import DataLoader
 from abc import abstractmethod
 from argparse import Namespace, ArgumentParser
@@ -25,20 +27,46 @@ class CanomalyModel:
         self.dataset = dataset
         self.device = config.device
         self.config = config
+        self.joint = args.approach == 'joint'
+        self.splits = args.approach == 'splits'
 
         Optim, optim_args = get_optim(args)
         self.Optimizer = Optim
         self.optim_args = optim_args
         self.full_log = {**vars(args), 'results': {}, 'knowledge': {}}
 
-        self.net: Union[torch.nn.Module, None] = None
+        if self.splits:
+            self.net = nn.ModuleList([self.get_backbone() for i in range(self.dataset.n_tasks)]).to(device=self.device)
+        else:
+            self.net = self.get_backbone().to(device=self.device)
+
+        self.opt = self.Optimizer(self.net.parameters(), **self.optim_args)
+        self.cur_task = 0
+
+    @abstractmethod
+    def get_backbone(self) -> torch.nn.Module:
+        pass
 
     @abstractmethod
     def train_on_batch(self, x: torch.Tensor, y: torch.Tensor, task: int) -> float:
         pass
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.net(x)
+    def anomaly_score(self, recs: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+        return F.mse_loss(recs, x, reduction='none').mean(dim=[i for i in range(len(recs.shape))][1:])
+
+    def forward(self, x: torch.Tensor, task: int = None) -> torch.Tensor:
+        if self.splits:
+            if task is not None:
+                return self.net[task](x)
+            if self.cur_task == 0:
+                return self.net[0](x)
+
+            outputs = torch.stack([net(x) for net in self.net[:self.cur_task+1]])
+            losses = torch.stack([self.anomaly_score(out, x) for out in outputs])
+            min_idx = losses.argmin(dim=0)
+            return outputs[min_idx, torch.arange(outputs.shape[1])]
+        else:
+            return self.net(x)
 
     def net_train(self):
         self.net.train()
@@ -75,6 +103,7 @@ class CanomalyModel:
         logger.log(f'TEST on task {task+1} - roc_auc = {auc}')
 
     def train_on_task(self, task_loader: DataLoader, task: int):
+        self.cur_task = task
         self.net_train()
         for e in range(self.args.n_epochs):
             keep_progress = True  # if e == self.args.n_epochs - 1 else False
@@ -96,10 +125,10 @@ class CanomalyModel:
     def train_on_dataset(self):
         logger.log(vars(self.args))
         # logger.log(self.net)
-        loader = self.dataset.joint_loader if self.args.joint else self.dataset.task_loader
-        freezed_params = [param.data.clone() for param in self.net.parameters()] if self.args.joint else []
+        loader = self.dataset.joint_loader if self.joint else self.dataset.task_loader
+        freezed_params = [param.data.clone() for param in self.net.parameters()] if self.joint else []
         for i, task_dl in enumerate(loader()):
-            if self.args.joint:
+            if self.joint:
                 for pidx, param in enumerate(self.net.parameters()):
                     param.data = freezed_params[pidx].clone()
 

@@ -7,6 +7,21 @@ from backbones import get_encoder, get_decoder
 from datasets.utils.canomaly_dataset import CanomalyDataset
 
 
+class SAE_Module(nn.Module):
+
+    def __init__(self, encoder: nn.Module, decoder: nn.Module):
+        super().__init__()
+        self.E = encoder
+        self.D = decoder
+
+    def forward(self, x: torch.Tensor):
+        z = self.E(x)
+        recs = self.D(z)
+        if self.training:
+            return recs, z
+        return recs
+
+
 class SAE(CanomalyModel):
     NAME = 'sae'
     VARIATIONAL = False
@@ -23,13 +38,14 @@ class SAE(CanomalyModel):
 
     def __init__(self, args: Namespace, dataset: CanomalyDataset):
         super(SAE, self).__init__(args=args, dataset=dataset)
-        self.E = get_encoder(args.dataset)(input_shape=dataset.INPUT_SHAPE,
-                                           code_length=args.latent_space)
-        self.D = get_decoder(args.dataset)(code_length=args.latent_space,
-                                           output_shape=dataset.INPUT_SHAPE)
-        self.net = nn.Sequential(self.E, self.D).to(device=self.device)
-        self.opt = self.Optimizer(self.net.parameters(), **self.optim_args)
+
         self.reconstruction_loss = nn.MSELoss()
+
+    def get_backbone(self):
+        return SAE_Module(
+            get_encoder(self.args.dataset)(input_shape=self.dataset.INPUT_SHAPE, code_length=self.args.latent_space),
+            get_decoder(self.args.dataset)(code_length=self.args.latent_space, output_shape=self.dataset.INPUT_SHAPE),
+        )
 
     def sparse_loss(self, z: torch.Tensor):
         # mean to normalize on batch size
@@ -37,8 +53,7 @@ class SAE(CanomalyModel):
 
     def train_on_batch(self, x: torch.Tensor, y: torch.Tensor, task: int):
         self.opt.zero_grad()
-        z = self.E(x)
-        outputs = self.D(z)
+        outputs, z = self.forward(x, task)
         loss = self.reconstruction_loss(outputs, x) + self.args.sparse_weight * self.sparse_loss(z)
         loss.backward()
         self.opt.step()
