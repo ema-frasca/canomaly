@@ -31,13 +31,13 @@ class CIFAR10Decoder(Decoder):
             UpsampleBlock(channel_in=128, channel_out=64, activation_fn=self.activation_fn),
             UpsampleBlock(channel_in=64, channel_out=32, activation_fn=self.activation_fn),
             ResidualBlock(channel_in=32, channel_out=32, activation_fn=self.activation_fn),
-            nn.Conv2d(in_channels=32, out_channels=3, kernel_size=1, bias=False)
+            nn.Conv2d(in_channels=32, out_channels=self.output_shape[0], kernel_size=1, bias=False)
         )
 
     def _set_fc_block(self):
         # FC network
         self.fc = nn.Sequential(
-            nn.Linear(in_features=self.latent_dim, out_features=256),
+            nn.Linear(in_features=self.code_length, out_features=256),
             nn.BatchNorm1d(num_features=256),
             self.activation_fn,
             nn.Linear(in_features=256, out_features=reduce(mul, self.deepest_shape)),

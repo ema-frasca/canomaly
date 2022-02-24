@@ -58,20 +58,6 @@ class ForgFMNIST(CanomalyDataset):
         self.train_groups = [i for i in range(self.N_GROUPS) if i != self.anomaly_group]
         self.train_quantity = {label: 6000 // len(group) for group in self.MACRO_CLASSES for label in group }
 
-        # for macro_label, group in enumerate(self.MACRO_CLASSES):
-            # test_indexes = torch.isin(self.test_dataset.targets, torch.tensor(group)).nonzero(as_tuple=True)[0]
-            # self.test_dataset.targets[test_indexes] = macro_label
-
-            # n_classes = len(group)
-            # for label in group:
-            #     indexes = (self.train_dataset.targets == label).nonzero(as_tuple=True)[0]
-            #     split_th = 6000 // n_classes
-            #     in_idxes = indexes[:split_th]
-            #     out_idxes = indexes[split_th:]
-            #     self.train_dataset.targets[in_idxes] = macro_label
-            #     self.train_dataset.targets[out_idxes] = self.N_CLASSES
-
-
     def _get_subset(self, labels: List[int], train=True):
         self.last_seen_classes = labels
         base_ds = self.train_dataset if train else self.test_dataset

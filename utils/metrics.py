@@ -85,7 +85,7 @@ def print_reconstructed_vs_true(rec: torch.Tensor, x: torch.Tensor, y: np.float,
     import pandas as pd
     dims = reshape_dim if reshape_dim is not None else x.shape
     true, reco = map(
-        lambda k: k.cpu().detach().numpy().flatten().reshape(*dims, 1),
+        lambda k: k.permute(1, 2, 0),
         [x, rec])
     # df = pd.DataFrame(np.concatenate([x.cpu().detach().numpy().flatten()[None, :],
     #                                   rec.cpu().detach().numpy().flatten()[None, :]

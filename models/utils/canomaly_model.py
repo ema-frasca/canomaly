@@ -152,7 +152,16 @@ class CanomalyModel:
         # from utils.metrics import print_reconstructed_vs_true
         # import numpy as np
         # n = 0
+        # nu, log = torch.tensor([0.4914, 0.4822, 0.4465]), torch.tensor([0.2470, 0.2435, 0.2615])
+        # # grayscale:
+        # nu, log = torch.tensor([(0.4914+0.4822+0.4465)/3]), torch.tensor([(0.2470+0.2435+0.2615)/3])
+        # def denormalize(img: torch.Tensor):
+        #     deimg = img * log[:, None, None] + nu[:, None, None]
+        #     return deimg
         # for n in range(self.dataset.N_CLASSES):
-        #     print_reconstructed_vs_true(torch.tensor(self.full_log['results']['0']['images'][n]['reconstruction']).squeeze(), torch.tensor(self.full_log['results']['0']['images'][n]['original']).squeeze(), np.array([n]))
+        #     print_reconstructed_vs_true(
+        #         denormalize(torch.tensor(self.full_log['results']['0']['images'][n]['reconstruction'])),
+        #         denormalize(torch.tensor(self.full_log['results']['0']['images'][n]['original'])),
+        #         np.array([n]))
 
         writer.write_log(res_log, result=True)

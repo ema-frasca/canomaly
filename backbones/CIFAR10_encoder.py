@@ -11,8 +11,8 @@ class CIFAR10Encoder(Encoder):
     MNIST model encoder.
     """
 
-    def __init__(self, input_shape: Tuple[int, int, int], code_length: int, variational: bool,
-                 conditional: bool) -> None:
+    def __init__(self, input_shape: Tuple[int, int, int], code_length: int, variational: bool = False,
+                 conditional: bool = False) -> None:
         """
         Class constructor:
         :param input_shape: the shape of MNIST samples.
