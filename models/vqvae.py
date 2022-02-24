@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Union
 
 from torch import nn
 import torch
@@ -8,6 +8,22 @@ from models import CanomalyModel
 from backbones import get_encoder, get_decoder
 from datasets.utils.canomaly_dataset import CanomalyDataset
 from torch.nn import functional as F
+
+
+class VQVAE_Module(nn.Module):
+    def __init__(self, encoder: nn.Module, vq_layer: nn.Module, decoder: nn.Module):
+        super().__init__()
+        self.E = encoder
+        self.vq_layer = vq_layer
+        self.D = decoder
+
+    def forward(self, x: torch.Tensor) -> Union[Tuple[torch.Tensor, float], torch.Tensor]:
+        encoder_out = self.E(x)
+        quantized_inputs, vq_loss = self.vq_layer(encoder_out)
+        if self.training:
+            return self.D(quantized_inputs), vq_loss
+        else:
+            return self.D(quantized_inputs)
 
 
 class VectorQuantizer(nn.Module):
@@ -76,38 +92,23 @@ class VQVAE(CanomalyModel):
 
     def __init__(self, args: Namespace, dataset: CanomalyDataset):
         super(VQVAE, self).__init__(args=args, dataset=dataset)
-        self.E = get_encoder(args.dataset)(input_shape=dataset.INPUT_SHAPE,
-                                           code_length=args.latent_space,
-                                           variational=False).conv
-
-        self.vq_layer = VectorQuantizer(self.args.num_embeddings,
-                                        self.args.latent_space,
-                                        self.args.beta)
-
-        self.D = get_decoder(args.dataset)(code_length=args.latent_space,
-                                           output_shape=dataset.INPUT_SHAPE).conv
-
-        # set as parameters only E conv + vq_layer + D
-        self.net = nn.Sequential(self.E, self.vq_layer, self.D).to(device=self.device)
-        self.opt = self.Optimizer(self.net.parameters(), **self.optim_args)
         self.reconstruction_loss = nn.MSELoss()
+
+    def get_backbone(self):
+        return VQVAE_Module(
+            get_encoder(self.args.dataset)(input_shape=self.dataset.INPUT_SHAPE,
+                                           code_length=self.args.latent_space).conv,
+            VectorQuantizer(self.args.num_embeddings,
+                            self.args.latent_space,
+                            self.args.beta),
+            get_decoder(self.args.dataset)(code_length=self.args.latent_space,
+                                           output_shape=self.dataset.INPUT_SHAPE).conv,
+        )
 
     def train_on_batch(self, x: torch.Tensor, y: torch.Tensor, task: int):
         self.opt.zero_grad()
-
-        # encoder forward (convolutional layer)
-        encoder_out = self.E(x)
-
-        quantized_inputs, vq_loss = self.vq_layer(encoder_out)
-        # decoder forward
-        outputs = self.D(quantized_inputs)
-
+        outputs, vq_loss = self.forward(x)
         loss = self.reconstruction_loss(x, outputs) + vq_loss
         loss.backward()
         self.opt.step()
         return loss.item()
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        encoder_out = self.E(x)
-        quantized_inputs, vq_loss = self.vq_layer(encoder_out)
-        return self.D(quantized_inputs)
