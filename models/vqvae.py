@@ -87,8 +87,8 @@ class VQVAE(CanomalyModel):
     def add_model_args(parser: ArgumentParser):
         parser.add_argument('--latent_space', type=int, required=True,
                             help='Latent space dimensionality.')
-        parser.add_argument('--num_embeddings', type=int, help='Number of embedding')
-        parser.add_argument('--beta', type=float, help='Weight in vector quantization.')
+        parser.add_argument('--num_embeddings', type=int, help='Number of embedding', required=True)
+        parser.add_argument('--beta', type=float, help='Weight in vector quantization.', required=True)
 
     def __init__(self, args: Namespace, dataset: CanomalyDataset):
         super(VQVAE, self).__init__(args=args, dataset=dataset)
@@ -97,7 +97,8 @@ class VQVAE(CanomalyModel):
     def get_backbone(self):
         return VQVAE_Module(
             get_encoder(self.args.dataset)(input_shape=self.dataset.INPUT_SHAPE,
-                                           code_length=self.args.latent_space).conv,
+                                           code_length=self.args.latent_space,
+                                           ).conv,
             VectorQuantizer(self.args.num_embeddings,
                             self.args.latent_space,
                             self.args.beta),

@@ -3,7 +3,7 @@ from typing import Type, List
 from backbones.utils.encoder import Encoder
 from backbones.utils.decoder import Decoder
 
-string_to_erase = ['can-', 'group-', 'forg-']
+string_to_erase = ['can-', 'group-', 'forg-', 'rec-']
 
 
 def replace_str(base: str, to_replace: List[str], replacement: str):
