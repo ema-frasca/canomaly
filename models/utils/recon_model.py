@@ -27,12 +27,11 @@ class ReconModel(CanomalyModel):
         super(ReconModel, self).__init__(args, dataset)
 
     def anomaly_score(self, recs: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
-
         return F.mse_loss(recs, x, reduction='none').mean(dim=[i for i in range(len(recs.shape))][1:])
 
     def test_step(self, test_loader: DataLoader, task: int):
         self.net_eval()
-        self.full_log['results'][str(task)] = {'targets': [], 'rec_errs': [], 'images': []}
+        self.full_log['results'][str(task)] = {'targets': [], 'rec_errs': [], 'images': [], 'latents': []}
         progress = logger.get_tqdm(test_loader, f'TEST on task {task + 1}')
         images_sample = {}
         for X, y in progress:
@@ -41,6 +40,12 @@ class ReconModel(CanomalyModel):
             outs = self.forward(X)
             rec_errs = self.anomaly_score(outs, X)
             self.full_log['results'][str(task)]['rec_errs'].extend(rec_errs.tolist())
+            self.full_log['results'][str(task)]['latents'].append(
+                torch.concat([x for num, x in enumerate(outs[1]) if y[num]
+                              in [x for sub in self.full_log['knowledge'].values()
+                                  for x in sub
+                                  ]]).tolist()
+            )
             if len(images_sample) < self.dataset.N_CLASSES and random() < 0.1:
                 for i in range(len(y)):
                     if str(y[i].item()) not in images_sample:
@@ -57,35 +62,6 @@ class ReconModel(CanomalyModel):
         self.full_log['results'][str(task)]['rec_mean'] = rec_mean
         logger.log(f'TEST on task {task + 1} - reconstruction error mean = {rec_mean}')
 
-    def train_on_task(self, task_loader: DataLoader, task: int):
-        self.cur_task = task
-        self.net_train()
-        for e in range(self.args.n_epochs):
-            keep_progress = True  # if e == self.args.n_epochs - 1 else False
-            progress = logger.get_tqdm(task_loader,
-                                       f'TRAIN on task {task + 1}/{self.dataset.n_tasks} - epoch {e + 1}/{self.args.n_epochs}',
-                                       leave=keep_progress)
-            for x, y in progress:
-                loss = self.train_on_batch(x.to(self.device), y.to(self.device), task)
-                progress.set_postfix({'loss': loss})
-            self.validate()
-            self.scheduler_step()
-
-    def train_on_dataset(self):
-        logger.log(vars(self.args))
-        # logger.log(self.net)
-        loader = self.dataset.joint_loader if self.joint else self.dataset.task_loader
-        freezed_params = [param.data.clone() for param in self.net.parameters()] if self.joint else []
-        for i, task_dl in enumerate(loader()):
-            if self.joint:
-                for pidx, param in enumerate(self.net.parameters()):
-                    param.data = freezed_params[pidx].clone()
-
-            self.train_on_task(task_dl, i)
-            self.full_log['knowledge'][str(i)] = self.dataset.last_seen_classes.copy()
-            # evaluate on test
-            self.test_step(self.dataset.test_loader(), i)
-
     def print_results(self):
         if self.args.logs:
             writer.write_log(self.full_log)
@@ -94,7 +70,6 @@ class ReconModel(CanomalyModel):
         cmatrix = reconstruction_confusion_matrix(self.full_log)
         res_log['conf_matrix_per_task'] = cmatrix
         writer.write_log(res_log, result=True)
-
 
 
 from utils.metrics import print_reconstructed_vs_true
