@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from torch import nn
 import torch
 from argparse import Namespace, ArgumentParser
@@ -20,7 +22,7 @@ class AE_Module(nn.Module):
         return recs, latents
 
 
-ModuleOuts = tuple[torch.Tensor, torch.Tensor]
+ModuleOuts = Tuple[torch.Tensor, torch.Tensor]
 
 
 class RecAE(ReconModel):
