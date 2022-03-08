@@ -3,6 +3,7 @@ import torch
 from torch import nn
 from torch.functional import F
 from torch.utils.data import DataLoader
+from torch.optim.lr_scheduler import MultiStepLR
 from abc import abstractmethod
 from argparse import Namespace, ArgumentParser
 from utils.config import config
@@ -13,6 +14,7 @@ from utils.logger import logger
 from utils.metrics import (reconstruction_error, compute_exp_metrics, reconstruction_confusion_matrix, compute_task_auc,
                            print_reconstructed_vs_true)
 from random import random
+import wandb
 
 
 class CanomalyModel:
@@ -41,6 +43,10 @@ class CanomalyModel:
             self.net = self.get_backbone().to(device=self.device)
 
         self.opt = self.Optimizer(self.net.parameters(), **self.optim_args)
+        self.scheduler = None
+        if args.scheduler_steps > 0 and args.n_epochs > 1:
+            self.scheduler = MultiStepLR(self.opt, milestones=[args.n_epochs * (step+1) // (args.scheduler_steps+1) for step in range(args.scheduler_steps)], gamma=args.scheduler_gamma)
+
         self.cur_task = 0
 
     @abstractmethod
@@ -54,19 +60,19 @@ class CanomalyModel:
     def anomaly_score(self, recs: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         return F.mse_loss(recs, x, reduction='none').mean(dim=[i for i in range(len(recs.shape))][1:])
 
-    def forward(self, x: torch.Tensor, task: int = None) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, task: int = None, **kwargs) -> torch.Tensor:
         if self.splits:
             if task is not None:
-                return self.net[task](x)
+                return self.net[task](x, **kwargs)
             if self.cur_task == 0:
-                return self.net[0](x)
+                return self.net[0](x, **kwargs)
 
-            outputs = torch.stack([net(x) for net in self.net[:self.cur_task+1]])
+            outputs = torch.stack([net(x, **kwargs) for net in self.net[:self.cur_task+1]])
             losses = torch.stack([self.anomaly_score(out, x) for out in outputs])
             min_idx = losses.argmin(dim=0)
             return outputs[min_idx, torch.arange(outputs.shape[1])]
         else:
-            return self.net(x)
+            return self.net(x, **kwargs)
 
     def net_train(self):
         self.net.train()
@@ -74,6 +80,7 @@ class CanomalyModel:
     def net_eval(self):
         self.net.eval()
 
+    @torch.no_grad()
     def test_step(self, test_loader: DataLoader, task: int):
         self.net_eval()
         self.full_log['results'][str(task)] = {'targets': [], 'rec_errs': [], 'images': []}
@@ -84,6 +91,17 @@ class CanomalyModel:
             X = X.to(self.device)
             outs = self.forward(X)
             rec_errs = reconstruction_error(X, outs)
+
+            # from utils.metrics import print_reconstructed_vs_true
+            # import numpy as np
+            # n = 0
+            # nu, log = torch.tensor([0.5, 0.5, 0.5]), torch.tensor([0.5, 0.5, 0.5]) # celeba
+            # nu, log = torch.tensor([0.485, 0.456, 0.406]), torch.tensor([0.229, 0.224, 0.225]) # mvtec
+            # def denormalize(img: torch.Tensor):
+            #     deimg = img * log[:, None, None] + nu[:, None, None]
+            #     return deimg
+            # print_reconstructed_vs_true(denormalize(X[n].cpu().detach()), denormalize(outs[n].cpu().detach()), np.array([n]))
+
             self.full_log['results'][str(task)]['rec_errs'].extend(rec_errs.tolist())
             if len(images_sample) < self.dataset.N_CLASSES and random() < 0.1:
                 for i in range(len(y)):
@@ -113,14 +131,33 @@ class CanomalyModel:
             for x, y in progress:
                 loss = self.train_on_batch(x.to(self.device), y.to(self.device), task)
                 progress.set_postfix({'loss': loss})
+                if self.args.wandb:
+                    wandb.log({"loss": loss})
             self.validate()
             self.scheduler_step()
 
+    @torch.no_grad()
     def validate(self):
-        pass
+        if self.args.wandb:
+            if self.args.dataset == 'mvtecad':
+                ok = True
+                while ok:
+                    X, y = next(iter(self.dataset.test_loader()))
+                    if (y==0).sum() > 0 and (y==1).sum() > 0:
+                        ok = False
+                X = X.to(self.device)
+                recs = self.forward(X)
+                good, bad = X[y == 0][0], X[y == 1][0]
+                good_rec, bad_rec = recs[y == 0][0], recs[y == 1][0]
+                orig = torch.cat((good, bad), dim=2)
+                recs = torch.cat((good_rec, bad_rec), dim=2)
+                full = torch.cat((orig, recs), dim=1).permute(1, 2, 0)
+                img = wandb.Image(full.cpu().numpy(), caption='top: origins; bottom: reconstructions')
+                wandb.log({'imgs': img})
 
     def scheduler_step(self):
-        pass
+        if self.scheduler is not None:
+            self.scheduler.step()
 
     def train_on_dataset(self):
         logger.log(vars(self.args))

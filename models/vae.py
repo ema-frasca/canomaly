@@ -60,7 +60,7 @@ class VAE(CanomalyModel):
         )
 
     def kld_loss(self, mu: torch.Tensor, logvar: torch.Tensor):
-        kld = torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1), dim=0)
+        kld = torch.mean(-0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp(), dim=1), dim=0)
         return kld
 
     def train_on_batch(self, x: torch.Tensor, y: torch.Tensor, task: int):

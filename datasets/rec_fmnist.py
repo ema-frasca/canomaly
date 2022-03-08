@@ -5,7 +5,7 @@ import torch
 from argparse import Namespace, ArgumentParser
 from torchvision.datasets import FashionMNIST
 from torchvision import transforms
-from torch.utils.data import Subset
+from torch.utils.data import Subset, DataLoader
 
 from datasets.transforms.rotation import Rotation
 from datasets.utils.canomaly_dataset import CanomalyDataset
@@ -16,8 +16,8 @@ class RecFMNIST(CanomalyDataset):
     NAME = 'rec-fmnist'
     INPUT_SHAPE = (1, 28, 28)
     N_CLASSES = 10
-    # MACRO_CLASSES = [[7], [5], [1], [8], [0, 2, 3, 4, 6], [9]]
-    MACRO_CLASSES = [[0], [1], [2], [3], [4], [5], [6], [7], [8], [9]]
+    MACRO_CLASSES = [[0, 2, 3, 4, 6], [1], [5, 7, 9], [8]]
+    # MACRO_CLASSES = [[0], [1], [2], [3], [4], [5], [6], [7], [8], [9]]
     N_GROUPS = len(MACRO_CLASSES)
 
     # MACRO_CLASSES = [[0, 2, 4, 6], [1], [3], [5, 7, 9], [8]]
@@ -25,11 +25,8 @@ class RecFMNIST(CanomalyDataset):
 
     @staticmethod
     def add_dataset_args(parser: ArgumentParser):
-        parser.add_argument('--classes_per_task', type=int, choices=[1, 2], required=True,
-                            help='Classes per task. This also determines the number of tasks.')
         parser.add_argument('--add_rotation', action='store_true', help='Add degrees rotation.')
         parser.add_argument('--min_max_rotation', type=tuple, default=(-15, 15), help='Min max rotation degrees.')
-        parser.add_argument('--poison', action='store_true')
         parser.add_argument('--poison_perc', default=0, type=float)
 
     def __init__(self, args: Namespace):
@@ -68,7 +65,7 @@ class RecFMNIST(CanomalyDataset):
             idxes = (base_ds.targets == label).nonzero(as_tuple=True)[0][:(self.train_quantity[label]
                                                                            * (1 - self.args.poison_perc)).__round__()]
             index_list.append(idxes)
-        if self.args.poison:
+        if self.args.poison_perc > 0:
             poison_idx = self._random_sample_from_other_classes()
             index_list.extend(poison_idx)
         idxes = torch.cat(index_list)
@@ -77,6 +74,17 @@ class RecFMNIST(CanomalyDataset):
     def _get_task_dataset(self):
         for group_idx in self.train_groups:
             yield self._get_subset(self.MACRO_CLASSES[group_idx])
+
+    def _get_test_dataset(self):
+        index_list = []
+        for label in range(self.N_CLASSES):
+            idxes = (self.test_dataset.targets == label).nonzero(as_tuple=True)[0][:100]
+            index_list.append(idxes)
+        idxes = torch.cat(index_list)
+        return Subset(self.test_dataset, idxes)
+
+    def test_loader(self):
+        return DataLoader(self._get_test_dataset(), batch_size=self.args.batch_size, shuffle=True)
 
     def _random_sample_from_other_classes(self):
         # last

@@ -60,5 +60,7 @@ def add_management_args(parser: ArgumentParser) -> None:
 
     parser.add_argument('--logs', action='store_true',
                         help='Enable full logging.')
+    parser.add_argument('--wandb', action='store_true',
+                        help='Enable wandb logging.')
     # parser.add_argument('--validation', action='store_true',
     #                     help='Test on the validation set')

@@ -24,8 +24,7 @@ class VAE_Module(nn.Module):
     def sample(self, latent_mu: torch.Tensor, latent_logvar: torch.Tensor):
         return torch.mul(torch.randn_like(latent_mu), (0.5 * latent_logvar).exp()) + latent_mu
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, Tuple[Tuple[torch.Tensor, torch.Tensor],
-                                                                                  None]]:
+    def forward(self, x: torch.Tensor):
         """
 
         :param x:
@@ -38,7 +37,11 @@ class VAE_Module(nn.Module):
             recs = self.D(z)
         else:
             recs = self.D(latent_mu)
-        return recs, z, (latent_mu, latent_logvar)
+
+        return recs, latent_mu, latent_logvar, z
+
+
+ModuleOuts = Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
 
 
 class RecVAE(ReconModel):
@@ -79,18 +82,18 @@ class RecVAE(ReconModel):
     def train_on_batch(self, x: torch.Tensor, y: torch.Tensor, task: int):
         self.opt.zero_grad()
 
-        outputs, z, (latent_mu, latent_logvar) = self.forward(x, task)
+        outputs, latent_mu, latent_logvar, z = self.forward(x, task)
 
         loss_reconstruction = self.reconstruction_loss(x, outputs)
         loss_kl = self.kld_loss(latent_mu, latent_logvar)
         loss = loss_reconstruction + self.args.kl_weight * loss_kl
         loss.backward()
         self.opt.step()
-        logger.autolog_wandb(wandb_yes=self.args.wandb, locals=locals())
+        # logger.autolog_wandb(wandb_yes=self.args.wandb, locals=locals())
         return loss.item()
 
-    def anomaly_score(self, recs: Tuple[torch.Tensor], x: torch.Tensor) -> torch.Tensor:
-        rec, z, (mu, logvar) = recs
+    def anomaly_score(self, recs: ModuleOuts, x: torch.Tensor) -> torch.Tensor:
+        rec, mu, logvar, z = recs
         rec_loss = F.mse_loss(rec, x, reduction='none').mean(dim=[i for i in range(len(rec.shape))][1:])
         kl_loss = self.kld_not_reduction(mu, logvar)
         if self.args.normalized_score:
@@ -102,20 +105,26 @@ class RecVAE(ReconModel):
         else:
             return rec_loss + kl_loss
 
+    def latents_from_outs(self, outs: ModuleOuts):
+        rec, mu, logvar, z = outs
+        return mu
+
     def train_on_task(self, task_loader: DataLoader, task: int):
         super(RecVAE, self).train_on_task(task_loader, task)
         self.net.eval()
-        kl_loss_train = []
-        rec_loss_train = []
         if self.args.normalized_score:
+            kl_loss_train = []
+            rec_loss_train = []
             for X, y in task_loader:
                 X = X.to(self.device)
-                recs, z, (latent_mu, latent_logvar) = self.forward(X)
+                recs, latent_mu, latent_logvar, z = self.forward(X)
                 kl_l = self.kld_loss(latent_mu, latent_logvar)
                 rec_l = self.reconstruction_loss(X, recs)
                 kl_loss_train.append(kl_l.item())
                 rec_loss_train.append(rec_l.item())
 
-            setattr(self, 'kl_loss_train_stats', (min(kl_loss_train), max(kl_loss_train)))
-            setattr(self, 'rec_loss_train_stats', (min(rec_loss_train), max(rec_loss_train)))
+            # setattr(self, 'kl_loss_train_stats', (min(kl_loss_train), max(kl_loss_train)))
+            # setattr(self, 'rec_loss_train_stats', (min(rec_loss_train), max(rec_loss_train)))
+            self.kl_loss_train_stats = (min(kl_loss_train), max(kl_loss_train))
+            self.rec_loss_train_stats = (min(rec_loss_train), max(rec_loss_train))
 

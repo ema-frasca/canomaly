@@ -34,10 +34,8 @@ class CanomalyDataset:
     def _get_joint_dataset(self) -> Dataset:
         pass
 
-    @staticmethod
-    @abstractmethod
-    def get_input_shape() -> Tuple[int, int, int]:
-        pass
+    def _get_test_dataset(self) -> Dataset:
+        return self.test_dataset
 
     def task_loader(self):
         for ds in self._get_task_dataset():
@@ -48,4 +46,4 @@ class CanomalyDataset:
             yield DataLoader(ds, batch_size=self.args.batch_size, shuffle=True, drop_last=True)
 
     def test_loader(self):
-        return DataLoader(self.test_dataset, batch_size=self.args.batch_size, shuffle=False)
+        return DataLoader(self._get_test_dataset(), batch_size=self.args.batch_size, shuffle=False)
