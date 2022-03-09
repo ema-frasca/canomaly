@@ -33,7 +33,7 @@ class VAE_Module(nn.Module):
         encoder_out = self.E(x)
         latent_mu, latent_logvar = encoder_out[:x.shape[0], :], encoder_out[x.shape[0]:, :]
         z = self.sample(latent_mu, latent_logvar)
-        if self.forward_sample:
+        if self.forward_sample or self.training:
             recs = self.D(z)
         else:
             recs = self.D(latent_mu)
@@ -73,6 +73,7 @@ class RecVAE(ReconModel):
                                            variational=self.VARIATIONAL,
                                            conditional=self.CONDITIONAL),
             get_decoder(self.args.dataset)(code_length=self.args.latent_space, output_shape=self.dataset.INPUT_SHAPE),
+            forward_sample=self.args.forward_sample
         )
 
     def kld_loss(self, mu: torch.Tensor, logvar: torch.Tensor):
@@ -89,7 +90,7 @@ class RecVAE(ReconModel):
         loss = loss_reconstruction + self.args.kl_weight * loss_kl
         loss.backward()
         self.opt.step()
-        # logger.autolog_wandb(wandb_yes=self.args.wandb, locals=locals())
+        logger.autolog_wandb(wandb_yes=self.args.wandb, locals=locals())
         return loss.item()
 
     def anomaly_score(self, recs: ModuleOuts, x: torch.Tensor) -> torch.Tensor:
