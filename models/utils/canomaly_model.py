@@ -124,6 +124,8 @@ class CanomalyModel:
         self.cur_task = task
         self.net_train()
         for e in range(self.args.n_epochs):
+            if self.args.wandb:
+                wandb.log({"epoch": e, "lr": self.scheduler.get_last_lr()[0]})
             keep_progress = True  # if e == self.args.n_epochs - 1 else False
             progress = logger.get_tqdm(task_loader,
                                        f'TRAIN on task {task+1}/{self.dataset.n_tasks} - epoch {e+1}/{self.args.n_epochs}',
