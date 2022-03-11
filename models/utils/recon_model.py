@@ -29,9 +29,11 @@ class ReconModel(CanomalyModel):
     def anomaly_score(self, recs: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         return F.mse_loss(recs, x, reduction='none').mean(dim=[i for i in range(1, len(recs.shape))])
 
-    @abstractmethod
     def latents_from_outs(self, outs: any) -> torch.Tensor:
-        pass
+        return outs[1]
+
+    def recs_from_outs(self, outs: any) -> torch.Tensor:
+        return outs[0]
 
     def test_step(self, test_loader: DataLoader, task: int):
         self.net_eval()
@@ -45,13 +47,16 @@ class ReconModel(CanomalyModel):
             rec_errs = self.anomaly_score(outs, X)
             self.full_log['results'][str(task)]['rec_errs'].extend(rec_errs.tolist())
             self.full_log['results'][str(task)]['latents'].extend(self.latents_from_outs(outs).tolist())
+
+            # i = 3
+            # print_reconstructed_vs_true(outs[0][i].detach().cpu(), X[i].cpu(), y[i].cpu())
+
             if len(images_sample) < self.dataset.N_CLASSES and random() < 0.5:
                 for i in range(len(y)):
                     if str(y[i].item()) not in images_sample:
                         images_sample[str(y[i].item())] = {
                             'original': X[i].tolist(),
-                            'reconstruction': outs[i].tolist() if isinstance(outs, torch.Tensor)
-                            else outs[0][i].tolist()}
+                            'reconstruction': self.recs_from_outs(outs)[i].tolist()}
                         # print_reconstructed_vs_true(outs[i], X[i], y[i], (28, 28))
         images_sample = dict(sorted(images_sample.items()))
         for label in images_sample:

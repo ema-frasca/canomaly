@@ -11,6 +11,7 @@ from datasets.utils.canomaly_dataset import CanomalyDataset
 from models.utils.recon_model import ReconModel
 from utils.logger import logger
 from torch.functional import F
+import wandb
 
 
 class VAE_Module(nn.Module):
@@ -43,7 +44,7 @@ class VAE_Module(nn.Module):
 
 ModuleOuts = Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
 
-
+# --dataset rec-fmnist --optim adam --lr 0.001 --scheduler_steps 2 --model rec-vae --kl_weight 1 --batch_size 64 --n_epochs 30 --latent_space 32 --approach joint
 class RecVAE(ReconModel):
     NAME = 'rec-vae'
     VARIATIONAL = True
@@ -63,7 +64,9 @@ class RecVAE(ReconModel):
     def __init__(self, args: Namespace, dataset: CanomalyDataset):
         super(RecVAE, self).__init__(args=args, dataset=dataset)
 
-        self.reconstruction_loss = nn.MSELoss()
+        self.reconstruction_loss = lambda x, recs: F.mse_loss(recs, x, reduction='none')\
+            .sum(dim=[i for i in range(1, len(x.shape))])\
+            .mean()
         self.kld_not_reduction = lambda mu, logvar: -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
 
     def get_backbone(self):
@@ -90,12 +93,15 @@ class RecVAE(ReconModel):
         loss = loss_reconstruction + self.args.kl_weight * loss_kl
         loss.backward()
         self.opt.step()
-        logger.autolog_wandb(wandb_yes=self.args.wandb, locals=locals())
+        if self.args.wandb:
+            wandb.log({'rec_loss': loss_reconstruction, 'kl_loss': loss_kl*self.args.kl_weight})
+
+        # logger.autolog_wandb(wandb_yes=self.args.wandb, locals=locals())
         return loss.item()
 
     def anomaly_score(self, recs: ModuleOuts, x: torch.Tensor) -> torch.Tensor:
         rec, mu, logvar, z = recs
-        rec_loss = F.mse_loss(rec, x, reduction='none').mean(dim=[i for i in range(len(rec.shape))][1:])
+        rec_loss = F.mse_loss(rec, x, reduction='none').mean(dim=[i for i in range(1, len(rec.shape))])
         kl_loss = self.kld_not_reduction(mu, logvar)
         if self.args.normalized_score:
             rec_loss_norm = ((rec_loss - self.rec_loss_train_stats[0]) /

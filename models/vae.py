@@ -5,6 +5,7 @@ from argparse import Namespace, ArgumentParser
 from models import CanomalyModel
 from backbones import get_encoder, get_decoder
 from datasets.utils.canomaly_dataset import CanomalyDataset
+from torch.functional import F
 
 
 class VAE_Module(nn.Module):
@@ -21,7 +22,7 @@ class VAE_Module(nn.Module):
     def forward(self, x: torch.Tensor):
         encoder_out = self.E(x)
         latent_mu, latent_logvar = encoder_out[:x.shape[0], :], encoder_out[x.shape[0]:, :]
-        if self.forward_sample:
+        if self.forward_sample or self.training:
             z = self.sample(latent_mu, latent_logvar)
             recs = self.D(z)
         else:
@@ -29,7 +30,6 @@ class VAE_Module(nn.Module):
         if self.training:
             return recs, latent_mu, latent_logvar
         return recs
-
 
 
 class VAE(CanomalyModel):
@@ -49,7 +49,9 @@ class VAE(CanomalyModel):
     def __init__(self, args: Namespace, dataset: CanomalyDataset):
         super(VAE, self).__init__(args=args, dataset=dataset)
 
-        self.reconstruction_loss = nn.MSELoss()
+        self.reconstruction_loss = lambda x, recs: F.mse_loss(recs, x, reduction='none')\
+            .sum(dim=[i for i in range(1, len(x.shape))])\
+            .mean()
 
     def get_backbone(self):
         return VAE_Module(
