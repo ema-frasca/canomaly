@@ -56,7 +56,7 @@ class ReconModel(CanomalyModel):
                     if str(y[i].item()) not in images_sample:
                         images_sample[str(y[i].item())] = {
                             'original': X[i].tolist(),
-                            'reconstruction': self.recs_from_outs(outs).tolist()}
+                            'reconstruction': self.recs_from_outs(outs)[i].tolist()}
                         # print_reconstructed_vs_true(outs[i], X[i], y[i], (28, 28))
         images_sample = dict(sorted(images_sample.items()))
         for label in images_sample:

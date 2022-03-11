@@ -3,7 +3,8 @@ import torch
 from torch import nn
 from torch.functional import F
 from torch.utils.data import DataLoader
-from torch.optim.lr_scheduler import MultiStepLR
+from torch.optim.optimizer import Optimizer
+from torch.optim.lr_scheduler import StepLR
 from abc import abstractmethod
 from argparse import Namespace, ArgumentParser
 from utils.config import config
@@ -13,6 +14,7 @@ from utils.writer import writer
 from utils.logger import logger
 from utils.metrics import (reconstruction_error, compute_exp_metrics, reconstruction_confusion_matrix, compute_task_auc,
                            print_reconstructed_vs_true)
+from typing import Union
 from random import random
 import wandb
 
@@ -42,16 +44,23 @@ class CanomalyModel:
         else:
             self.net = self.get_backbone().to(device=self.device)
 
-        self.opt = self.Optimizer(self.net.parameters(), **self.optim_args)
-        self.scheduler = None
-        if args.scheduler_steps > 0 and args.n_epochs > 1:
-            self.scheduler = MultiStepLR(self.opt, milestones=[args.n_epochs * (step+1) // (args.scheduler_steps+1) for step in range(args.scheduler_steps)], gamma=args.scheduler_gamma)
+        self.opt = self.get_opt()
+        self.scheduler = self.get_scheduler()
 
         self.cur_task = 0
 
     @abstractmethod
     def get_backbone(self) -> torch.nn.Module:
         pass
+
+    def get_opt(self) -> Optimizer:
+        return self.Optimizer(self.net.parameters(), **self.optim_args)
+
+    def get_scheduler(self) -> Union[StepLR, None]:
+        if self.args.scheduler_steps > 0 and self.args.n_epochs > 1:
+            return StepLR(self.opt, step_size=(self.args.n_epochs // (self.args.scheduler_steps+1)), gamma=self.args.scheduler_gamma)
+        else:
+            return None
 
     @abstractmethod
     def train_on_batch(self, x: torch.Tensor, y: torch.Tensor, task: int) -> float:
@@ -124,8 +133,8 @@ class CanomalyModel:
         self.cur_task = task
         self.net_train()
         for e in range(self.args.n_epochs):
-            if self.args.wandb:
-                wandb.log({"epoch": e, "lr": self.scheduler.get_last_lr()[0]})
+            # if self.args.wandb:
+            #     wandb.log({"epoch": e, "lr": self.scheduler.get_last_lr()[0]})
             keep_progress = True  # if e == self.args.n_epochs - 1 else False
             progress = logger.get_tqdm(task_loader,
                                        f'TRAIN on task {task+1}/{self.dataset.n_tasks} - epoch {e+1}/{self.args.n_epochs}',
@@ -134,7 +143,7 @@ class CanomalyModel:
                 loss = self.train_on_batch(x.to(self.device), y.to(self.device), task)
                 progress.set_postfix({'loss': loss})
                 if self.args.wandb:
-                    wandb.log({"loss": loss})
+                    wandb.log({"loss": loss, "epoch": e, "lr": self.scheduler.get_last_lr()[0], "task": task})
             self.validate()
             self.scheduler_step()
 
@@ -170,7 +179,8 @@ class CanomalyModel:
             if self.joint:
                 for pidx, param in enumerate(self.net.parameters()):
                     param.data = freezed_params[pidx].clone()
-
+            self.opt = self.get_opt()
+            self.scheduler = self.get_scheduler()
             self.train_on_task(task_dl, i)
             self.full_log['knowledge'][str(i)] = self.dataset.last_seen_classes.copy()
             # evaluate on test
