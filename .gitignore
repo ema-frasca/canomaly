@@ -2,3 +2,4 @@ storage/*
 **/.idea
 wandb/*
 /scripts/configurations/
+/notebooks/.ipynb_checkpoints/
