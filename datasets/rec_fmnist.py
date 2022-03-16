@@ -53,6 +53,7 @@ class RecFMNIST(CanomalyDataset):
                                          transform=self.transform_test)
 
         self.train_groups = [i for i in range(self.N_GROUPS)]
+        # train max: 6k | test max: 1k
         self.train_quantity = {label: 6000 // (len(group)) for group in self.MACRO_CLASSES for label in group}
         self.test_quantity = {label: 1000 // (len(group)) for group in self.MACRO_CLASSES for label in group}
         self.classes_seen = []
