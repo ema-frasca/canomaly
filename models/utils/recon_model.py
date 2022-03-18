@@ -29,24 +29,32 @@ class ReconModel(CanomalyModel):
     def anomaly_score(self, recs: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         return F.mse_loss(recs, x, reduction='none').mean(dim=[i for i in range(1, len(recs.shape))])
 
-    def latents_from_outs(self, outs: any) -> torch.Tensor:
-        return outs[1]
-
     def recs_from_outs(self, outs: any) -> torch.Tensor:
         return outs[0]
 
+    def latents_from_outs(self, outs: any) -> torch.Tensor:
+        return outs[1]
+
+    def init_cur_logs(self) -> dict:
+        return {'targets': [], 'rec_errs': [], 'images': [], 'latents': []}
+
+    def save_logs_from_outs(self, cur_log: dict, outs: any, x: torch.Tensor, y: torch.Tensor):
+        cur_log['targets'].extend(y.tolist())
+
+        rec_errs = self.anomaly_score(outs, x)
+        cur_log['rec_errs'].extend(rec_errs.tolist())
+
+        cur_log['latents'].extend(self.latents_from_outs(outs).tolist())
+
     def test_step(self, test_loader: DataLoader, task: int):
         self.net_eval()
-        self.full_log['results'][str(task)] = {'targets': [], 'rec_errs': [], 'images': [], 'latents': []}
+        self.full_log['results'][str(task)] = self.init_cur_logs()
         progress = logger.get_tqdm(test_loader, f'TEST on task {task + 1}')
         images_sample = {}
         for X, y in progress:
-            self.full_log['results'][str(task)]['targets'].extend(y.tolist())
             X = X.to(self.device)
             outs = self.forward(X)
-            rec_errs = self.anomaly_score(outs, X)
-            self.full_log['results'][str(task)]['rec_errs'].extend(rec_errs.tolist())
-            self.full_log['results'][str(task)]['latents'].extend(self.latents_from_outs(outs).tolist())
+            self.save_logs_from_outs(self.full_log['results'][str(task)], outs, X, y)
 
             # i = 3
             # print_reconstructed_vs_true(outs[0][i].detach().cpu(), X[i].cpu(), y[i].cpu())

@@ -23,7 +23,7 @@ class VAE_Module(nn.Module):
         self.forward_sample = forward_sample
 
     def sample(self, latent_mu: torch.Tensor, latent_logvar: torch.Tensor):
-        return torch.mul(torch.randn_like(latent_mu), (0.5 * latent_logvar).exp()) + latent_mu
+        return torch.randn_like(latent_mu) * (0.5 * latent_logvar).exp() + latent_mu
 
     def forward(self, x: torch.Tensor):
         """
@@ -115,6 +115,15 @@ class RecVAE(ReconModel):
     def latents_from_outs(self, outs: ModuleOuts):
         rec, mu, logvar, z = outs
         return mu
+
+    def init_cur_logs(self):
+        return {**super().init_cur_logs(), 'logvars': []}
+
+    def save_logs_from_outs(self, cur_log: dict, outs: any, x: torch.Tensor, y: torch.Tensor):
+        super().save_logs_from_outs(cur_log, outs, x, y)
+
+        rec, mu, logvar, z = outs
+        cur_log['logvars'].extend(logvar.tolist())
 
     def train_on_task(self, task_loader: DataLoader, task: int):
         super(RecVAE, self).train_on_task(task_loader, task)
