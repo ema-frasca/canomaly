@@ -86,7 +86,7 @@ class RecFMNIST(CanomalyDataset):
         return Subset(self.test_dataset, idxes)
 
     def test_loader(self):
-        return DataLoader(self._get_test_dataset(), batch_size=self.args.batch_size, shuffle=True)
+        return DataLoader(self._get_test_dataset(), batch_size=self.args.batch_size, shuffle=False)
 
     def _random_sample_from_other_classes(self):
         # last

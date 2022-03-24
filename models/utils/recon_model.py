@@ -59,7 +59,7 @@ class ReconModel(CanomalyModel):
             # i = 3
             # print_reconstructed_vs_true(outs[0][i].detach().cpu(), X[i].cpu(), y[i].cpu())
 
-            if len(images_sample) < self.dataset.N_CLASSES and random() < 0.5:
+            if len(images_sample) < self.dataset.N_CLASSES and random() < 1.1:
                 for i in range(len(y)):
                     if str(y[i].item()) not in images_sample:
                         images_sample[str(y[i].item())] = {
