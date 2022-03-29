@@ -39,9 +39,6 @@ class RecAE(ReconModel):
 
         self.loss = nn.MSELoss()
 
-    def latents_from_outs(self, outs: ModuleOuts) -> torch.Tensor:
-        return outs[1]
-
     def get_backbone(self):
         return AE_Module(
             get_encoder(self.args.dataset)(input_shape=self.dataset.INPUT_SHAPE, code_length=self.args.latent_space),

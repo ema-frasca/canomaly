@@ -23,6 +23,8 @@ class CanomalyDataset:
 
         self.train_dataset = None
         self.test_dataset = None
+        self.transform = None
+        self.transform_test = None
 
         self.last_seen_classes: list[int] = []
 
