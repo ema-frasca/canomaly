@@ -57,7 +57,8 @@ class ReconModel(CanomalyModel):
             self.save_logs_from_outs(self.full_log['results'][str(task)], outs, X, y)
 
             # i = 0
-            # print_reconstructed_vs_true(outs[0][i].detach().cpu(), X[i].cpu(), y[i].cpu())
+            # for i in range(5):
+            #     print_reconstructed_vs_true(outs[0][i].detach().cpu(), X[i].cpu(), y[i].cpu())
 
             if len(images_sample) < self.dataset.N_CLASSES and random() < 1.1:
                 for i in range(len(y)):

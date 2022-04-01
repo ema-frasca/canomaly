@@ -44,10 +44,10 @@ class CanomalyModel:
         else:
             self.net = self.get_backbone().to(device=self.device)
 
+        self.cur_task = 0
+
         self.opt = self.get_opt()
         self.scheduler = self.get_scheduler()
-
-        self.cur_task = 0
 
     @abstractmethod
     def get_backbone(self) -> torch.nn.Module:
@@ -130,7 +130,6 @@ class CanomalyModel:
         logger.log(f'TEST on task {task+1} - roc_auc = {auc}')
 
     def train_on_task(self, task_loader: DataLoader, task: int):
-        self.cur_task = task
         self.net_train()
         for e in range(self.args.n_epochs):
             # if self.args.wandb:
@@ -176,6 +175,7 @@ class CanomalyModel:
         loader = self.dataset.joint_loader if self.joint else self.dataset.task_loader
         freezed_params = [param.data.clone() for param in self.net.parameters()] if self.joint else []
         for i, task_dl in enumerate(loader()):
+            self.cur_task = i
             if self.joint:
                 for pidx, param in enumerate(self.net.parameters()):
                     param.data = freezed_params[pidx].clone()

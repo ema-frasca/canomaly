@@ -101,7 +101,7 @@ class RecVAE(ReconModel):
 
     def anomaly_score(self, recs: ModuleOuts, x: torch.Tensor) -> torch.Tensor:
         rec, mu, logvar, z = recs
-        rec_loss = F.mse_loss(rec, x, reduction='none').mean(dim=[i for i in range(1, len(rec.shape))])
+        rec_loss = F.mse_loss(rec, x, reduction='none').sum(dim=[i for i in range(1, len(rec.shape))])
         kl_loss = self.kld_not_reduction(mu, logvar)
         if self.args.normalized_score:
             rec_loss_norm = ((rec_loss - self.rec_loss_train_stats[0]) /
@@ -110,7 +110,7 @@ class RecVAE(ReconModel):
                             (self.kl_loss_train_stats[1] - self.kl_loss_train_stats[0]))
             return rec_loss_norm + kl_loss_norm #todo: chiedi ad angel se devo pesare anche la kl per il beta di training
         else:
-            return rec_loss + kl_loss
+            return rec_loss # + kl_loss
 
     def latents_from_outs(self, outs: ModuleOuts):
         rec, mu, logvar, z = outs
