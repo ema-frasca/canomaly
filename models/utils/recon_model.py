@@ -27,7 +27,7 @@ class ReconModel(CanomalyModel):
         super(ReconModel, self).__init__(args, dataset)
 
     def anomaly_score(self, recs: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
-        return F.mse_loss(recs, x, reduction='none').mean(dim=[i for i in range(1, len(recs.shape))])
+        return F.mse_loss(recs, x, reduction='none').sum(dim=[i for i in range(1, len(recs.shape))])
 
     def recs_from_outs(self, outs: any) -> torch.Tensor:
         return outs[0]
