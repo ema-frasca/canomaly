@@ -39,6 +39,9 @@ class CanomalyDataset:
     def _get_test_dataset(self) -> Dataset:
         return self.test_dataset
 
+    def _get_mini_test_dataset(self) -> Dataset:
+        return self.test_dataset
+
     def task_loader(self):
         for ds in self._get_task_dataset():
             yield DataLoader(ds, batch_size=self.args.batch_size, shuffle=True, drop_last=True)
@@ -49,3 +52,6 @@ class CanomalyDataset:
 
     def test_loader(self):
         return DataLoader(self._get_test_dataset(), batch_size=self.args.batch_size, shuffle=False)
+
+    def mini_test_loader(self):
+        return DataLoader(self._get_mini_test_dataset(), batch_size=self.args.batch_size, shuffle=False)

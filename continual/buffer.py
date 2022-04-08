@@ -52,15 +52,15 @@ class Buffer:
             assert n_tasks is not None
             self.task_number = n_tasks
             self.buffer_portion_size = buffer_size // n_tasks
-        self.attributes = ['examples', 'labels', 'logits', 'task_labels']
+        self.attributes = ['examples', 'labels', 'latents', 'task_labels']
 
     def init_tensors(self, examples: torch.Tensor, labels: torch.Tensor,
-                     logits: torch.Tensor, task_labels: torch.Tensor) -> None:
+                     latents: torch.Tensor, task_labels: torch.Tensor) -> None:
         """
         Initializes just the required tensors.
         :param examples: tensor containing the images
         :param labels: tensor containing the labels
-        :param logits: tensor containing the outputs of the network
+        :param latents: tensor containing the outputs of the network
         :param task_labels: tensor containing the task labels
         """
         for attr_str in self.attributes:
@@ -70,17 +70,17 @@ class Buffer:
                 setattr(self, attr_str, torch.zeros((self.buffer_size,
                         *attr.shape[1:]), dtype=typ, device=self.device))
 
-    def add_data(self, examples, labels=None, logits=None, task_labels=None):
+    def add_data(self, examples, labels=None, latents=None, task_labels=None):
         """
         Adds the data to the memory buffer according to the reservoir strategy.
         :param examples: tensor containing the images
         :param labels: tensor containing the labels
-        :param logits: tensor containing the outputs of the network
+        :param latents: tensor containing the outputs of the network
         :param task_labels: tensor containing the task labels
         :return:
         """
         if not hasattr(self, 'examples'):
-            self.init_tensors(examples, labels, logits, task_labels)
+            self.init_tensors(examples, labels, latents, task_labels)
 
         for i in range(examples.shape[0]):
             index = reservoir(self.num_seen_examples, self.buffer_size)
@@ -89,8 +89,8 @@ class Buffer:
                 self.examples[index] = examples[i].to(self.device)
                 if labels is not None:
                     self.labels[index] = labels[i].to(self.device)
-                if logits is not None:
-                    self.logits[index] = logits[i].to(self.device)
+                if latents is not None:
+                    self.latents[index] = latents[i].to(self.device)
                 if task_labels is not None:
                     self.task_labels[index] = task_labels[i].to(self.device)
 
@@ -122,6 +122,15 @@ class Buffer:
         Returns true if the buffer is empty, false otherwise.
         """
         if self.num_seen_examples == 0:
+            return True
+        else:
+            return False
+
+    def is_full(self) -> bool:
+        """
+        Returns true if the buffer is full, false otherwise.
+        """
+        if self.num_seen_examples >= self.buffer_size:
             return True
         else:
             return False

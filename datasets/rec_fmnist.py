@@ -56,6 +56,7 @@ class RecFMNIST(CanomalyDataset):
         # train max: 6k | test max: 1k
         self.train_quantity = {label: 6000 // (len(group)) for group in self.MACRO_CLASSES for label in group}
         self.test_quantity = {label: 1000 // (len(group)) for group in self.MACRO_CLASSES for label in group}
+        self.mini_test_quantity = {label: 30 // (len(group)) for group in self.MACRO_CLASSES for label in group}
         self.classes_seen = []
 
     def _get_subset(self, labels: List[int], train=True):
@@ -81,6 +82,14 @@ class RecFMNIST(CanomalyDataset):
         index_list = []
         for label in range(self.N_CLASSES):
             idxes = (self.test_dataset.targets == label).nonzero(as_tuple=True)[0][:self.test_quantity[label]]
+            index_list.append(idxes)
+        idxes = torch.cat(index_list)
+        return Subset(self.test_dataset, idxes)
+
+    def _get_mini_test_dataset(self):
+        index_list = []
+        for label in range(self.N_CLASSES):
+            idxes = (self.test_dataset.targets == label).nonzero(as_tuple=True)[0][:self.mini_test_quantity[label]]
             index_list.append(idxes)
         idxes = torch.cat(index_list)
         return Subset(self.test_dataset, idxes)
