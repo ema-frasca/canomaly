@@ -15,6 +15,19 @@ def reconstruction_error(input_image: torch.Tensor, reconstruction: torch.Tensor
     return F.mse_loss(input_image, reconstruction, reduction='none').sum([x for x in range(1, len(input_image.shape))])
 
 
+def fid_confusion_matrix(log):
+    labels = np.unique(np.array(next(iter(log['results'].values()))['targets'])).tolist()
+    indexes = [key + str(log['knowledge'][key]) for key in log['knowledge']]
+    matrix = pd.DataFrame(index=indexes,
+                          columns=labels, dtype='float')
+
+    for idx, task in zip(indexes, log['results']):
+        scores = log['results'][task]['fid']
+        for label in labels:
+            matrix.loc[idx, label] = scores[label]
+    return matrix.to_dict(orient='index')
+
+
 def reconstruction_confusion_matrix(log: dict):
     labels = np.unique(np.array(next(iter(log['results'].values()))['targets'])).tolist()
     indexes = [key + str(log['knowledge'][key]) for key in log['knowledge']]
