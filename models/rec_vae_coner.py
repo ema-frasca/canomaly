@@ -16,6 +16,7 @@ from models.rec_vae import RecVAE
 from models.rec_vae_er import RecVAEER
 from continual.buffer import Buffer
 from utils.spectral_analysis import laplacian_analysis
+from utils.batch_norm_freeze import bn_untrack_stats
 
 # --dataset rec-fmnist --optim adam --lr 0.001 --scheduler_steps 2 --model rec-vae --kl_weight 1 --batch_size 64 --n_epochs 30 --latent_space 32 --approach joint
 class RecVAEConER(RecVAEER):
@@ -27,6 +28,8 @@ class RecVAEConER(RecVAEER):
     def add_model_args(parser: ArgumentParser):
         RecVAE.add_model_args(parser)
         Buffer.add_args(parser)
+        parser.add_argument('--con_weight', type=float, default=0,
+                            help='Weight of consolidation.')
         parser.add_argument('--knn_laplace', type=int, default=10,
                             help='K of knn to build the graph for laplacian.')
         parser.add_argument('--fmap_dim', type=int, default=20,
@@ -41,13 +44,65 @@ class RecVAEConER(RecVAEER):
         self.buffer_evectors = []
 
     def train_on_batch(self, x: torch.Tensor, y: torch.Tensor, task: int):
-        if self.spectral_buffer.num_seen_examples < self.spectral_buffer.buffer_size:
+        if not self.spectral_buffer.is_full():
             self.spectral_buffer.add_data(examples=x, labels=y)
 
-        if not self.args.er_mode or self.joint:
-            self.buffer.empty()
+        if self.args.er_mode:
+            real_batch_size = x.shape[0]
+            if not self.buffer.is_empty():
+                buf_inputs, buf_labels = self.buffer.get_data()
+                x = torch.cat((x, buf_inputs))
+                y = torch.cat((y, buf_labels))
 
-        return super().train_on_batch(x, y, task)
+            # todo: add not augmented data in buffer
+            self.buffer.add_data(examples=x[:real_batch_size], labels=y[:real_batch_size])
+
+
+        for param in self.net.parameters():
+            if torch.isnan(param).any() or torch.isinf(param).any():
+                assert False, 'param nan or inf'
+
+        self.opt.zero_grad()
+        outputs, latent_mu, latent_logvar, z = self.forward(x, task)
+        loss_reconstruction = self.reconstruction_loss(x, outputs)
+        loss_kl = self.kld_loss(latent_mu, latent_logvar)
+        loss = loss_reconstruction + self.args.kl_weight * loss_kl
+
+        if torch.isnan(loss) or torch.isinf(loss):
+            assert False, 'loss nan or inf'
+
+        if task > 1 and self.args.con_weight > 0:
+            with bn_untrack_stats(self.net):
+                # self.buffer_evectors.append(self.compute_buffer_evects())
+                # evects = self.compute_buffer_evects()
+                inputs, labels = self.spectral_buffer.get_all_data()
+                outputs, latent_mu, latent_logvar, z = self.forward(inputs)
+                latent_mu.retain_grad()
+                latent_logvar.retain_grad()
+                energy, eigenvalues, eigenvectors, L = laplacian_analysis(latent_mu, logvars=latent_logvar, norm_lap=True,
+                                                                          knn=self.args.knn_laplace, n_pairs=self.args.fmap_dim)
+                L.retain_grad()
+                eigenvectors.retain_grad()
+                self.buffer_evectors.append(eigenvectors)
+                c_loss = self.get_consolidation_error(details=False)
+                # self.buffer_evectors.pop()
+                if torch.isnan(c_loss) or torch.isinf(c_loss):
+                    assert False, 'c_loss nan or inf'
+                loss = self.args.con_weight * c_loss
+
+        loss.backward()
+
+        for param in self.net.parameters():
+            if torch.isnan(param.grad).any() or torch.isinf(param.grad).any():
+                assert False, 'grad nan or inf'
+        if task > 1 and self.args.con_weight > 0:
+            self.buffer_evectors.pop()
+
+        self.opt.step()
+        if self.args.wandb:
+            wandb.log({'rec_loss': loss_reconstruction, 'kl_loss': loss_kl*self.args.kl_weight})
+
+        return loss.item()
 
     def validate(self):
         if not self.spectral_buffer.is_full():
@@ -60,11 +115,12 @@ class RecVAEConER(RecVAEER):
 
         # running consolidation error
         if self.cur_task > 1:
-            self.buffer_evectors.append(self.compute_buffer_evects())
-            cerr = self.get_consolidation_error(details=False)
-            self.buffer_evectors.pop()
+            with torch.no_grad():
+                self.buffer_evectors.append(self.compute_buffer_evects())
+                cerr = self.get_consolidation_error(details=False)
+                self.buffer_evectors.pop()
             if self.args.wandb:
-                wandb.log({'consolidation_error': cerr, 'reconstruction_error': rec_err})
+                wandb.log({'consolidation_error': cerr.item(), 'reconstruction_error': rec_err})
         self.net_train()
 
     @torch.no_grad()
@@ -94,19 +150,17 @@ class RecVAEConER(RecVAEER):
                     wandb.log({"loss": loss, "epoch": e, "lr": self.scheduler.get_last_lr()[0], "task": task})
             self.scheduler_step()
 
-        self.buffer_evectors.append(self.compute_buffer_evects())
+        with torch.no_grad():
+            self.net_eval()
+            evects = self.compute_buffer_evects()
+            self.net_train()
+        self.buffer_evectors.append(evects)
         if task > 1:
             cerr = self.get_consolidation_error(details=False)
-            logger.log(f'Consolidation error: {cerr:.4f}')
+            logger.log(f'Consolidation error: {cerr.item():.4f}')
 
-        if task == 1:
-            self.buffer_evectors.append(self.compute_buffer_evects())
-            cerr = self.get_consolidation_error(details=False)
-            self.buffer_evectors.pop()
-            logger.log(f'Consolidation error: {cerr:.4f}')
-
-        # if task == self.dataset.n_tasks - 1:
-        #     exit()
+        if task == self.dataset.n_tasks - 1:
+            exit()
 
     def train_on_dataset(self):
         logger.log(vars(self.args))
@@ -121,17 +175,13 @@ class RecVAEConER(RecVAEER):
             # evaluate on test
             self.test_step(self.dataset.test_loader(), i)
 
-    @torch.no_grad()
     def compute_buffer_evects(self):
         inputs, labels = self.spectral_buffer.get_all_data()
-        self.net_eval()
         outputs, latent_mu, latent_logvar, z = self.forward(inputs)
-        self.net_train()
         energy, eigenvalues, eigenvectors, L = laplacian_analysis(latent_mu, logvars=latent_logvar, norm_lap=True,
                                                                   knn=self.args.knn_laplace)
         return eigenvectors[:, :self.args.fmap_dim]
 
-    @torch.no_grad()
     def get_consolidation_error(self, details=False):
         import matplotlib.pyplot as plt
         import seaborn as sns
@@ -152,7 +202,7 @@ class RecVAEConER(RecVAEER):
             else:
                 c_product = c_product @ c
             oode = torch.square(c[mask]).sum().item()
-            sns.heatmap(c.cpu(), cmap='bwr', vmin=-1, vmax=1, ax=ax[i], cbar=True if i + 1 == ncols else False)
+            sns.heatmap(c.detach().cpu(), cmap='bwr', vmin=-1, vmax=1, ax=ax[i], cbar=True if i + 1 == ncols else False)
             ax[i].set_title(f'FMap Task {i} => {i + 1} | oode={oode:.4f}')
 
         if details: plt.show()
@@ -163,17 +213,17 @@ class RecVAEConER(RecVAEER):
         plt.suptitle(f'\nCompare differences of 0->Last and consecutive product')
 
         oode = torch.square(c_0_last[mask]).sum().item()
-        sns.heatmap(c_0_last.cpu(), cmap='bwr', vmin=-1, vmax=1, ax=ax[0], cbar=False)
+        sns.heatmap(c_0_last.detach().cpu(), cmap='bwr', vmin=-1, vmax=1, ax=ax[0], cbar=False)
         ax[0].set_title(f'FMap Task 0 => {len(evects) - 1}\n oode={oode:.4f}')
         oode = torch.square(c_product[mask]).sum().item()
-        sns.heatmap(c_product.cpu(), cmap='bwr', vmin=-1, vmax=1, ax=ax[1], cbar=False)
+        sns.heatmap(c_product.detach().cpu(), cmap='bwr', vmin=-1, vmax=1, ax=ax[1], cbar=False)
         ax[1].set_title(f'FMap Diagonal Product\n oode={oode:.4f}')
         diff = (c_0_last - c_product).abs()
-        sns.heatmap(diff.cpu(), cmap='bwr', vmin=-1, vmax=1, ax=ax[2], cbar=True)
+        sns.heatmap(diff.detach().cpu(), cmap='bwr', vmin=-1, vmax=1, ax=ax[2], cbar=True)
         ax[2].set_title(f'Absolute Differences | sum: {diff.sum().item():.4f}')
         if details: plt.show()
         else: plt.close()
 
-        return diff.sum().item()
+        return diff.sum()
 
 
