@@ -2,6 +2,7 @@ import torch
 from utils.config import config
 from xitorch.linalg import symeig
 from xitorch import LinearOperator
+from utils.knn import NeuralNearestNeighbors
 
 
 def calc_ADL_from_dist(dist_matrix: torch.Tensor, sigma=1.):
@@ -24,21 +25,30 @@ def calc_dist_weiss(nu: torch.Tensor, logvar: torch.Tensor):
 
 def calc_ADL_knn(distances: torch.Tensor, k: int, symmetric: bool = True):
     new_A = torch.clone(distances)
-    mask = torch.eye(new_A.shape[0])
-    new_A[mask==1] = +torch.inf
+    new_A[torch.eye(len(new_A)).bool()] = +torch.inf
+
+    knn = NeuralNearestNeighbors(k)
+
+    # knn.log_temp = torch.nn.Parameter(torch.tensor(-10.))
+    # final_A = knn(-new_A.unsqueeze(0)).squeeze().sum(-1)
+    # final_A += final_A.clone().T
+    # final_A[final_A != 0] /= final_A.clone()[final_A != 0]
 
     final_A = torch.zeros_like(new_A)
     idxes = new_A.topk(k, largest=False)[1]
     final_A[torch.arange(len(idxes)).unsqueeze(1), idxes] = 1
-
-    if symmetric:
-        final_A = ((final_A + final_A.T) > 0).float()
-        # final_A = 0.5*(final_A + final_A.T)
+    final_A = ((final_A + final_A.T) > 0).float()
 
     # backpropagation trick
-    A = (final_A - distances).detach() + distances
+    w = knn(-new_A.unsqueeze(0)).squeeze().sum(-1)
+    # Ahk, _, _ = calc_ADL_from_dist(distances, sigma=1)
+    A = final_A.detach() + (w - w.detach())
+    # A = final_A
+
     # compute degree matrix
-    D = torch.diag(A.sum(1))
+    d_values = A.sum(1)
+    assert not (d_values == 0).any(), f'D contains zeros in diag: \n{d_values}'  # \n{A.tolist()}\n{distances.tolist()}'
+    D = torch.diag(d_values)
     # compute laplacian
     L = D - A
     return A, D, L
@@ -46,7 +56,8 @@ def calc_ADL_knn(distances: torch.Tensor, k: int, symmetric: bool = True):
 def calc_ADL(data: torch.Tensor, sigma=1.):
     return calc_ADL_from_dist(calc_euclid_dist(data), sigma)
 
-def find_eigs(laplacian: torch.Tensor, n_pairs:int=0, largest=False ):
+def find_eigs(laplacian: torch.Tensor, n_pairs:int=0, largest=False):
+    # n_pairs = 0
     if n_pairs > 0:
         # eigenvalues, eigenvectors = torch.lobpcg(laplacian, n_pairs, largest=torch.tensor([largest]))
         # eigenvalues, eigenvectors = LOBPCG2.apply(laplacian, n_pairs)
@@ -68,8 +79,9 @@ def calc_energy_from_values(values: torch.Tensor, norm=False):
     return energy_p.cpu().item()
 
 def normalize_A(A, D):
-    inv_d = D.pow(-0.5)
-    inv_d[torch.isinf(inv_d)] = 0
+    inv_d = torch.diag(D[torch.eye(len(D)).bool()].pow(-0.5))
+    assert not torch.isinf(inv_d).any(), 'D^-0.5 contains inf'
+    # inv_d[torch.isinf(inv_d)] = 0
     # return torch.sqrt(torch.linalg.inv(D)) @ A @ torch.sqrt(torch.linalg.inv(D))
     return inv_d @ A @ inv_d
 
@@ -102,7 +114,7 @@ def laplacian_analysis(data: torch.Tensor, sigma=1., knn=0, logvars: torch.Tenso
     energy = calc_energy_from_values(eigenvalues, norm=norm_lap)
     if norm_eigs and not norm_lap:
         eigenvalues = eigenvalues / (len(eigenvalues))
-    return energy, eigenvalues, eigenvectors, L
+    return energy, eigenvalues, eigenvectors, L, (A, D, distances)
 
 
 class LOBPCG2(torch.autograd.Function):
