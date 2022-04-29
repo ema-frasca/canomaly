@@ -67,40 +67,51 @@ class RecVAEConER(RecVAEER):
         loss_reconstruction = self.reconstruction_loss(x, outputs)
         loss_kl = self.kld_loss(latent_mu, latent_logvar)
         loss = loss_reconstruction + self.args.kl_weight * loss_kl
+        wlogs = {'rec_loss': loss_reconstruction.item(), 'kl_loss': loss_kl.item()}
 
         if torch.isnan(loss) or torch.isinf(loss):
-            assert False, 'loss nan or inf'
+            # assert False, 'loss nan or inf'
+            pass
 
-        if task > 1 and self.args.con_weight > 0:
+
+        if task > 1:  # and self.args.con_weight > 0:
             with bn_untrack_stats(self.net):
                 # self.buffer_evectors.append(self.compute_buffer_evects())
                 # evects = self.compute_buffer_evects()
                 inputs, labels = self.spectral_buffer.get_all_data()
                 outputs, latent_mu, latent_logvar, z = self.forward(inputs)
-                latent_mu.retain_grad()
-                latent_logvar.retain_grad()
-                energy, eigenvalues, eigenvectors, L = laplacian_analysis(latent_mu, logvars=latent_logvar, norm_lap=True,
+                energy, eigenvalues, eigenvectors, L, (A, D, dists) = laplacian_analysis(latent_mu, logvars=None, norm_lap=True,
                                                                           knn=self.args.knn_laplace, n_pairs=self.args.fmap_dim)
-                L.retain_grad()
-                eigenvectors.retain_grad()
+                # energy, eigenvalues, eigenvectors, L, (A, D, dists) = laplacian_analysis(latent_mu, logvars=None, norm_lap=True,
+                #                                                           sigma=3, n_pairs=self.args.fmap_dim)
+                # latent_mu.retain_grad()
+                # latent_logvar.retain_grad()
+                # L.retain_grad(), A.retain_grad(), D.retain_grad(), dists.retain_grad()
+                # eigenvectors.retain_grad()
                 self.buffer_evectors.append(eigenvectors)
                 c_loss = self.get_consolidation_error(details=False)
                 # self.buffer_evectors.pop()
                 if torch.isnan(c_loss) or torch.isinf(c_loss):
                     assert False, 'c_loss nan or inf'
-                loss = self.args.con_weight * c_loss
+                loss += self.args.con_weight * c_loss
+                wlogs['con_loss'] = c_loss.item()
 
         loss.backward()
 
         for param in self.net.parameters():
             if torch.isnan(param.grad).any() or torch.isinf(param.grad).any():
+                print(f'\nEigenvectors there is None: {torch.isnan(eigenvectors.grad).any().item()}'
+                      f'\nL there is None: any {torch.isnan(L.grad).any().item()} all {torch.isnan(L.grad).all().item()}'
+                      f'\nA there is None: any {torch.isnan(A.grad).any().item()} all {torch.isnan(A.grad).all().item()}'
+                      f'\nDistances there is None: any {torch.isnan(dists.grad).any().item()} all {torch.isnan(dists.grad).all().item()}'
+                      f'\nLatents there is None: any {torch.isnan(latent_mu.grad).any().item()} all {torch.isnan(latent_mu.grad).all().item()}')
                 assert False, 'grad nan or inf'
-        if task > 1 and self.args.con_weight > 0:
+        if task > 1:
             self.buffer_evectors.pop()
 
         self.opt.step()
         if self.args.wandb:
-            wandb.log({'rec_loss': loss_reconstruction, 'kl_loss': loss_kl*self.args.kl_weight})
+            wandb.log(wlogs)
 
         return loss.item()
 
@@ -147,7 +158,7 @@ class RecVAEConER(RecVAEER):
                 loss = self.train_on_batch(x.to(self.device), y.to(self.device), task)
                 progress.set_postfix({'loss': loss})
                 if self.args.wandb:
-                    wandb.log({"loss": loss, "epoch": e, "lr": self.scheduler.get_last_lr()[0], "task": task})
+                    wandb.log({"loss": loss, "epoch": e, "lr": self.scheduler.get_last_lr()[0] if self.scheduler is not None else self.args.lr, "task": task})
             self.scheduler_step()
 
         with torch.no_grad():
@@ -159,8 +170,8 @@ class RecVAEConER(RecVAEER):
             cerr = self.get_consolidation_error(details=False)
             logger.log(f'Consolidation error: {cerr.item():.4f}')
 
-        if task == self.dataset.n_tasks - 1:
-            exit()
+        # if task == self.dataset.n_tasks - 1:
+        #     exit()
 
     def train_on_dataset(self):
         logger.log(vars(self.args))
@@ -178,7 +189,7 @@ class RecVAEConER(RecVAEER):
     def compute_buffer_evects(self):
         inputs, labels = self.spectral_buffer.get_all_data()
         outputs, latent_mu, latent_logvar, z = self.forward(inputs)
-        energy, eigenvalues, eigenvectors, L = laplacian_analysis(latent_mu, logvars=latent_logvar, norm_lap=True,
+        energy, eigenvalues, eigenvectors, L, _ = laplacian_analysis(latent_mu, logvars=latent_logvar, norm_lap=True,
                                                                   knn=self.args.knn_laplace)
         return eigenvectors[:, :self.args.fmap_dim]
 
@@ -223,6 +234,9 @@ class RecVAEConER(RecVAEER):
         ax[2].set_title(f'Absolute Differences | sum: {diff.sum().item():.4f}')
         if details: plt.show()
         else: plt.close()
+
+        # if self.args.wandb:
+        #     wandb.log({"fmap": wandb.Image(diff.cpu().detach().numpy())})
 
         return diff.sum()
 
