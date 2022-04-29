@@ -1,19 +1,44 @@
+import numpy as np
 import torch
 from argparse import Namespace, ArgumentParser
 from torchvision.datasets import CelebA
 from torchvision import transforms
 from torch.utils.data import Subset, DataLoader
-from typing import List
+from typing import List, Union
 
 from datasets.utils.canomaly_dataset import CanomalyDataset
 from itertools import product
 
 
 class MyCeleba(CelebA):
-    def __init__(self, target_idxes, **kwargs):
+    def __init__(self, target_idxes: List[int] = None, target_names: List[str] = None,
+                 delete_bad_attr=False, take_only_unique=False, **kwargs):
         super().__init__(**kwargs)
+        assert target_idxes is not None or target_names is not None, 'Give one of target_names or target_idxes'
+        assert (target_idxes is None and target_names is not None) or \
+               (target_idxes is not None and target_names is None), 'Only one between target_idxes and target_names ' \
+                                                                    'has to be not None'
+        if target_names is not None:
+            target_idxes = [np.where(np.array(self.attr_names) == a)[0][0] for a in target_names]
+
+        if delete_bad_attr:
+            bad_attr = ['Wearing_Hat', 'Bald', 'Receding_Hairline']
+            bad_attr_ids = [np.where(np.array(self.attr_names) == a)[0][0] for a in bad_attr]
+            ## images with a chosen attribute (only one per attribute to avoid ambiguity)
+            proper_ids = np.where((self.attr[:, bad_attr_ids].sum(1) == 0))[0]
+            self.filename = np.array(self.filename)[proper_ids].tolist()
+            self.attr = self.attr[proper_ids]
+
         self.target_idxes = target_idxes
         targets = product([0, 1], repeat=len(target_idxes))
+        if take_only_unique:
+            targets = [x for x in targets if sum(x) == 1]
+
+        proper_ids = torch.concat(
+            [torch.where((torch.Tensor(tar)[None, :].broadcast_to(self.attr[:, target_idxes].shape)
+                          == self.attr[:, target_idxes]).all(1))[0] for tar in targets])
+        self.filename = np.array(self.filename)[proper_ids].tolist()
+        self.attr = self.attr[proper_ids]
         self.trans_dict = {t: num for num, t in enumerate(targets)}
         self.targets = [self.trans_dict[tuple(x.tolist())] for x in self.attr[:, target_idxes]]
 
@@ -27,8 +52,11 @@ class RecCelebA(CanomalyDataset):
     NAME = 'rec-celeba'
     IMG_SIZE = 64
     INPUT_SHAPE = (3, IMG_SIZE, IMG_SIZE)
-    TARGET_IDXES = [9, 20]
-    N_CLASSES = len([x for x in product([0, 1], repeat=len(TARGET_IDXES))])
+    # TARGET_IDXES = [8, 20]
+    TARGET_IDXES = None
+    TARGET_NAMES = ['Black_Hair', 'Blond_Hair', 'Brown_Hair', 'Gray_Hair']
+    N_CLASSES = len([x for x in product([0, 1], repeat=len(TARGET_IDXES if TARGET_IDXES is not None
+                                                           else TARGET_NAMES))])
     MACRO_CLASSES = [[i] for i in range(N_CLASSES)]
     N_GROUPS = len(MACRO_CLASSES)
 
@@ -58,13 +86,16 @@ class RecCelebA(CanomalyDataset):
         # ssl._create_default_https_context = ssl._create_unverified_context
 
         self.train_dataset = MyCeleba(root=self.config.data_dir, split='train', download=True, transform=self.transform,
-                                      target_idxes=self.TARGET_IDXES)
+                                      target_idxes=self.TARGET_IDXES, target_names=self.TARGET_NAMES,
+                                      delete_bad_attr=True, take_only_unique=True
+                                      )
         self.test_dataset = MyCeleba(root=self.config.data_dir, split='test', download=True, transform=self.transform,
-                                     target_idxes=self.TARGET_IDXES)
+                                     target_idxes=self.TARGET_IDXES, target_names=self.TARGET_NAMES,
+                                     delete_bad_attr=True, take_only_unique=True)
 
         self.train_groups = [i for i in range(self.N_GROUPS)]
-        self.train_quantity = {label: 5000 // len(group) for group in self.MACRO_CLASSES for label in group}
-        self.test_quantity = {label: -1  # 1000 // (len(group))
+        self.train_quantity = {label: 3200 // len(group) for group in self.MACRO_CLASSES for label in group}
+        self.test_quantity = {label: 300 // (len(group))
                               for group in self.MACRO_CLASSES for label in group}
 
         self.classes_seen = []
