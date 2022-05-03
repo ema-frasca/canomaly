@@ -89,7 +89,7 @@ class RecVAEConER(RecVAEER):
                 # L.retain_grad(), A.retain_grad(), D.retain_grad(), dists.retain_grad()
                 # eigenvectors.retain_grad()
                 self.buffer_evectors.append(eigenvectors)
-                c_loss = self.get_consolidation_error(details=False)
+                c_loss = self.get_consolidation_error()
                 # self.buffer_evectors.pop()
                 if torch.isnan(c_loss) or torch.isinf(c_loss):
                     assert False, 'c_loss nan or inf'
@@ -128,7 +128,7 @@ class RecVAEConER(RecVAEER):
         if self.cur_task > 1:
             with torch.no_grad():
                 self.buffer_evectors.append(self.compute_buffer_evects())
-                cerr = self.get_consolidation_error(details=False)
+                cerr = self.get_consolidation_error()
                 self.buffer_evectors.pop()
             if self.args.wandb:
                 wandb.log({'consolidation_error': cerr.item(), 'reconstruction_error': rec_err})
@@ -167,7 +167,7 @@ class RecVAEConER(RecVAEER):
             self.net_train()
         self.buffer_evectors.append(evects)
         if task > 1:
-            cerr = self.get_consolidation_error(details=False)
+            cerr = self.get_consolidation_error()
             logger.log(f'Consolidation error: {cerr.item():.4f}')
 
         # if task == self.dataset.n_tasks - 1:
@@ -193,17 +193,9 @@ class RecVAEConER(RecVAEER):
                                                                   knn=self.args.knn_laplace)
         return eigenvectors[:, :self.args.fmap_dim]
 
-    def get_consolidation_error(self, details=False):
-        import matplotlib.pyplot as plt
-        import seaborn as sns
+    def get_consolidation_error(self):
         evects = self.buffer_evectors
         n_vects = self.args.fmap_dim
-
-        ncols = len(evects) - 1
-        figsize = (6*ncols, 6)
-        fig, ax = plt.subplots(1, ncols, figsize=figsize)
-        plt.suptitle(f'\nKnn Norm Laplacian | {n_vects} eigenvects | {len(evects[0])} data')
-        mask = torch.eye(n_vects) == 0
         c_0_last = evects[0][:, :n_vects].T @ evects[len(evects) - 1][:, :n_vects]
         c_product = torch.ones((n_vects, n_vects), device=self.device, dtype=torch.double)
         for i, ev in enumerate(evects[:-1]):
@@ -212,32 +204,55 @@ class RecVAEConER(RecVAEER):
                 c_product = c.clone()
             else:
                 c_product = c_product @ c
-            oode = torch.square(c[mask]).sum().item()
-            sns.heatmap(c.detach().cpu(), cmap='bwr', vmin=-1, vmax=1, ax=ax[i], cbar=True if i + 1 == ncols else False)
-            ax[i].set_title(f'FMap Task {i} => {i + 1} | oode={oode:.4f}')
 
-        if details: plt.show()
-        else: plt.close()
-
-        figsize = (6 * 3, 8)
-        fig, ax = plt.subplots(1, 3, figsize=figsize)
-        plt.suptitle(f'\nCompare differences of 0->Last and consecutive product')
-
-        oode = torch.square(c_0_last[mask]).sum().item()
-        sns.heatmap(c_0_last.detach().cpu(), cmap='bwr', vmin=-1, vmax=1, ax=ax[0], cbar=False)
-        ax[0].set_title(f'FMap Task 0 => {len(evects) - 1}\n oode={oode:.4f}')
-        oode = torch.square(c_product[mask]).sum().item()
-        sns.heatmap(c_product.detach().cpu(), cmap='bwr', vmin=-1, vmax=1, ax=ax[1], cbar=False)
-        ax[1].set_title(f'FMap Diagonal Product\n oode={oode:.4f}')
         diff = (c_0_last - c_product).abs()
-        sns.heatmap(diff.detach().cpu(), cmap='bwr', vmin=-1, vmax=1, ax=ax[2], cbar=True)
-        ax[2].set_title(f'Absolute Differences | sum: {diff.sum().item():.4f}')
-        if details: plt.show()
-        else: plt.close()
-
-        # if self.args.wandb:
-        #     wandb.log({"fmap": wandb.Image(diff.cpu().detach().numpy())})
-
         return diff.sum()
+
+    # def get_consolidation_error(self, details=False):
+    #     import matplotlib.pyplot as plt
+    #     import seaborn as sns
+    #     evects = self.buffer_evectors
+    #     n_vects = self.args.fmap_dim
+    #
+    #     ncols = len(evects) - 1
+    #     figsize = (6*ncols, 6)
+    #     fig, ax = plt.subplots(1, ncols, figsize=figsize)
+    #     plt.suptitle(f'\nKnn Norm Laplacian | {n_vects} eigenvects | {len(evects[0])} data')
+    #     mask = torch.eye(n_vects) == 0
+    #     c_0_last = evects[0][:, :n_vects].T @ evects[len(evects) - 1][:, :n_vects]
+    #     c_product = torch.ones((n_vects, n_vects), device=self.device, dtype=torch.double)
+    #     for i, ev in enumerate(evects[:-1]):
+    #         c = ev[:, :n_vects].T @ evects[i + 1][:, :n_vects]
+    #         if i == 0:
+    #             c_product = c.clone()
+    #         else:
+    #             c_product = c_product @ c
+    #         oode = torch.square(c[mask]).sum().item()
+    #         sns.heatmap(c.detach().cpu(), cmap='bwr', vmin=-1, vmax=1, ax=ax[i], cbar=True if i + 1 == ncols else False)
+    #         ax[i].set_title(f'FMap Task {i} => {i + 1} | oode={oode:.4f}')
+    #
+    #     if details: plt.show()
+    #     else: plt.close()
+    #
+    #     figsize = (6 * 3, 8)
+    #     fig, ax = plt.subplots(1, 3, figsize=figsize)
+    #     plt.suptitle(f'\nCompare differences of 0->Last and consecutive product')
+    #
+    #     oode = torch.square(c_0_last[mask]).sum().item()
+    #     sns.heatmap(c_0_last.detach().cpu(), cmap='bwr', vmin=-1, vmax=1, ax=ax[0], cbar=False)
+    #     ax[0].set_title(f'FMap Task 0 => {len(evects) - 1}\n oode={oode:.4f}')
+    #     oode = torch.square(c_product[mask]).sum().item()
+    #     sns.heatmap(c_product.detach().cpu(), cmap='bwr', vmin=-1, vmax=1, ax=ax[1], cbar=False)
+    #     ax[1].set_title(f'FMap Diagonal Product\n oode={oode:.4f}')
+    #     diff = (c_0_last - c_product).abs()
+    #     sns.heatmap(diff.detach().cpu(), cmap='bwr', vmin=-1, vmax=1, ax=ax[2], cbar=True)
+    #     ax[2].set_title(f'Absolute Differences | sum: {diff.sum().item():.4f}')
+    #     if details: plt.show()
+    #     else: plt.close()
+    #
+    #     # if self.args.wandb:
+    #     #     wandb.log({"fmap": wandb.Image(diff.cpu().detach().numpy())})
+    #
+    #     return diff.sum()
 
 
